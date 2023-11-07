@@ -9,16 +9,20 @@ import (
 	"github.com/trymoose/wg4d/wgapi/internal/value/wgkey"
 )
 
-type IPCGet bytes.Buffer
+// IPCGet is used to help get information from a wireguard userspace configuration as documented in [wireguard cross-platform documentation].
+type IPCGet struct{ buf bytes.Buffer }
 
-func (get *IPCGet) Write(b []byte) (int, error) { return get.bbuf().Write(b) }
-func (get *IPCGet) Reset()                      { get.bbuf().Reset() }
-func (get *IPCGet) bbuf() *bytes.Buffer         { return (*bytes.Buffer)(get) }
+// Write is used to write 'key=value\n' lines from the wireguard IPC.
+func (get *IPCGet) Write(b []byte) (int, error) { return get.buf.Write(b) }
+
+// Reset allows this to be reused for another operation. Without calling this [IPCGet.Value] will only return the data from the first time this was used.
+func (get *IPCGet) Reset() { get.buf.Reset() }
 
 var kvCutChar = []byte{'='}
 
+// Value converts the text data into an [IPC].
 func (get *IPCGet) Value() (IPC, error) {
-	sc := bufio.NewScanner(get.bbuf())
+	sc := bufio.NewScanner(&get.buf)
 	sc.Split(parser.ScanLines)
 	var ipc IPC
 	for i := 0; sc.Scan(); i++ {

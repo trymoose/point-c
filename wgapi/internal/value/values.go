@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/trymoose/wg4d/wgapi/internal/value/wgkey"
 	"golang.org/x/exp/constraints"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	"net"
+	"slices"
 	"strconv"
 )
 
@@ -53,6 +55,34 @@ type Key[K fmt.Stringer, Type wgkey.Type] wgkey.Key[Type]
 
 func (key Key[K, Type]) Key() string    { return getKey[K]() }
 func (key Key[K, Type]) String() string { return hex.EncodeToString(key[:]) }
+
+// Public converts the keys to a public key. An error will only be returned if the key is not a private key.
+func (key Key[K, Type]) Public() (public Key[K, wgkey.Public], err error) {
+	switch any(*new(Type)).(type) {
+	case wgkey.Public:
+		public = Key[K, wgkey.Public](slices.Clone(key[:]))
+	case wgkey.Private:
+		public = Key[K, wgkey.Public](wgtypes.Key(key).PublicKey())
+	default:
+		err = wgkey.ErrInvalidKeyType[Type]{}
+	}
+	return
+}
+
+// MarshalText converts the key into a base64 string.
+func (key Key[K, Type]) MarshalText() ([]byte, error) {
+	return []byte(wgtypes.Key(key).String()), nil
+}
+
+// UnmarshalText parses a key in base64 format.
+func (key *Key[K, Type]) UnmarshalText(text []byte) error {
+	k, err := wgtypes.ParseKey(string(text))
+	if err != nil {
+		return err
+	}
+	copy(key[:], k[:])
+	return nil
+}
 
 func getKey[K fmt.Stringer]() string              { var k K; return k.String() }
 func boolString[B ~bool](b B) string              { return strconv.FormatBool(bool(b)) }

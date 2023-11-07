@@ -1,7 +1,9 @@
-package wg4d
+// Package device is a device that can dial or listen on any address in a wireguard tunnel.
+package device
 
 import (
 	"context"
+	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun"
 	"gvisor.dev/gvisor/pkg/buffer"
@@ -23,12 +25,18 @@ import (
 )
 
 const (
-	DefaultMTU         = device.DefaultMTU
-	DefaultBatchSize   = 1
-	DefaultChannelSize = 1024
+	// WireguardHeaderSize is the size of a wireguard header. The MTU needed for the [Device] is <actual hardware MTU> - [WireguardHeaderSize].
+	WireguardHeaderSize = 80
+	// DefaultMTU is the default MTU as specified from wireguard-go
+	DefaultMTU = device.DefaultMTU
+	// DefaultBatchSize is the default number of packets read/written from the [tun.Device] in one operation.
+	DefaultBatchSize = conn.IdealBatchSize
+	// DefaultChannelSize is the size of the packet queue for the underlaying [channel.Endpoint]
+	DefaultChannelSize = 8 * DefaultBatchSize
 )
 
-type Netstack struct {
+// Device is a wireguard device that creates a bridge that takes the raw packets communicated through wireguard and turns them into a meaningful TCP/UDP connections.
+type Device struct {
 	ep         *channel.Endpoint
 	stack      *stack.Stack
 	events     chan tun.Event
@@ -41,8 +49,14 @@ type Netstack struct {
 	mtu        int
 }
 
-func NewNetstack(mtu int, batchSize int, channelSize int) (*Netstack, error) {
-	ns := &Netstack{
+// NewDefault calls New with the default values.
+func NewDefault() (*Device, error) {
+	return New(DefaultMTU, DefaultBatchSize, DefaultChannelSize)
+}
+
+// New creates a new wireguard network stack.
+func New(mtu int, batchSize int, channelSize int) (*Device, error) {
+	ns := &Device{
 		mtu: mtu,
 		ep:  channel.New(channelSize, uint32(mtu), ""),
 		stack: stack.New(stack.Options{
@@ -83,9 +97,11 @@ func NewNetstack(mtu int, batchSize int, channelSize int) (*Netstack, error) {
 	return ns, nil
 }
 
-func (ns *Netstack) Device() tun.Device { return (*dev)(ns) }
+// Device exposes the wireguard device to be used when initializing the wireguard interface.
+func (ns *Device) Device() tun.Device { return (*dev)(ns) }
 
-func (ns *Netstack) Close() error {
+// Close closes the network stack rendering it unusable in the future.
+func (ns *Device) Close() error {
 	ns.close.Do(func() {
 		close(ns.done)
 		go func() { ns.events <- tun.EventDown }()
@@ -97,7 +113,7 @@ func (ns *Netstack) Close() error {
 
 var _ channel.Notification = (*writeNotify)(nil)
 
-type writeNotify Netstack
+type writeNotify Device
 
 func (w *writeNotify) WriteNotify() {
 	pkt := w.ep.Read()
@@ -115,15 +131,16 @@ func (w *writeNotify) WriteNotify() {
 
 var _ tun.Device = (*dev)(nil)
 
-type dev Netstack
+type dev Device
 
 func (d *dev) File() *os.File           { return nil }
 func (d *dev) Name() (string, error)    { return "netstack", nil }
 func (d *dev) MTU() (int, error)        { return d.mtu, nil }
 func (d *dev) Events() <-chan tun.Event { return d.events }
 func (d *dev) BatchSize() int           { return d.batchSize }
-func (d *dev) Close() error             { return ((*Netstack)(d)).Close() }
+func (d *dev) Close() error             { return ((*Device)(d)).Close() }
 
+// Read will always read exactly one packet at a time.
 func (d *dev) Read(buf [][]byte, sizes []int, offset int) (n int, err error) {
 	select {
 	case <-d.done:
@@ -134,6 +151,7 @@ func (d *dev) Read(buf [][]byte, sizes []int, offset int) (n int, err error) {
 	}
 }
 
+// Write will write all packets given to it to the underlaying netstack.
 func (d *dev) Write(buf [][]byte, offset int) (int, error) {
 	for _, buf := range buf {
 		buf = buf[offset:]
@@ -152,17 +170,20 @@ func (d *dev) Write(buf [][]byte, offset int) (int, error) {
 	return len(buf), nil
 }
 
+// TCPIPError turn a [tcpip.Error] into a normal error.
 type TCPIPError struct{ Err tcpip.Error }
 
 func (err *TCPIPError) Error() string { return err.Err.String() }
 
+// Net handles the application level dialing/listening.
 type Net struct {
 	stack *stack.Stack
 	local tcpip.FullAddress
 	nic   tcpip.NICID
 }
 
-func (ns *Netstack) Net(local net.IP) *Net {
+// Net creates a [Net] with the given local IP. The local IP is the address listened on when calling [Net.ListenTCP]. It will also be the source IP for [Net.DialTCP] and [Net.DialUDP].
+func (ns *Device) Net(local net.IP) *Net {
 	return &Net{
 		stack: ns.stack,
 		local: tcpip.FullAddress{
@@ -173,6 +194,7 @@ func (ns *Netstack) Net(local net.IP) *Net {
 	}
 }
 
+// ListenTCP listens on the given port for this address.
 func (n *Net) ListenTCP(port uint16) (net.Listener, error) {
 	return gonet.ListenTCP(n.stack, tcpip.FullAddress{
 		NIC:  n.local.NIC,
@@ -181,6 +203,7 @@ func (n *Net) ListenTCP(port uint16) (net.Listener, error) {
 	}, ipv4.ProtocolNumber)
 }
 
+// DialTCP initiates a TCP connection with a remote TCP listener.
 func (n *Net) DialTCP(ctx context.Context, addr *net.TCPAddr) (net.Conn, error) {
 	return gonet.DialTCPWithBind(ctx, n.stack, n.local, tcpip.FullAddress{
 		NIC:  n.nic,
@@ -189,6 +212,7 @@ func (n *Net) DialTCP(ctx context.Context, addr *net.TCPAddr) (net.Conn, error) 
 	}, ipv4.ProtocolNumber)
 }
 
+// DialUDP dials a UDP network.
 func (n *Net) DialUDP(addr *net.UDPAddr) (net.PacketConn, error) {
 	return gonet.DialUDP(n.stack, &n.local, &tcpip.FullAddress{
 		NIC:  n.nic,

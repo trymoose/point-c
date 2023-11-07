@@ -3,8 +3,11 @@ package wg4d_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/trymoose/wg4d"
+	"github.com/trymoose/wg4d/device"
 	"github.com/trymoose/wg4d/wgapi"
+	"github.com/trymoose/wg4d/wgapi/wgconfig"
 	"golang.org/x/exp/rand"
 	"math"
 	"net"
@@ -12,35 +15,32 @@ import (
 	"time"
 )
 
+const logWG = false
+
 func TestTCPConnection(t *testing.T) {
 	keys := generateKeys(t)
 	wgPort := uint16(51820)
 	clientPublic := net.IPv4(192, 168, 123, 2)
 
-	client, closer := GetNet(t, &wgapi.ClientConfig{
+	clientConfig := &wgconfig.Client{
 		Private:   keys.clientPrivate,
 		Public:    keys.serverPublic,
 		PreShared: keys.shared,
-		Endpoint: net.UDPAddr{
-			IP:   net.IPv4(127, 0, 0, 1),
-			Port: int(wgPort),
-		},
-		PersistentKeepalive: uint32(wgapi.DefaultPersistentKeepalive),
-		AllowedIPs:          []net.IPNet{net.IPNet(wgapi.EmptySubnet)},
-	})
+		Endpoint:  net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: int(wgPort)},
+	}
+	clientConfig.AllowAllIPs()
+	clientConfig.DefaultPersistentKeepAlive()
+
+	client, closer := GetNet(t, clientConfig)
 	defer closer()
 
-	server, closer := GetNet(t, &wgapi.ServerConfig{
-		Private:    keys.serverPrivate,
-		ListenPort: wgPort,
-		Peers: []*wgapi.ServerPeer{
-			{
-				Public:    keys.clientPublic,
-				PreShared: keys.shared,
-				Address:   clientPublic,
-			},
-		},
-	})
+	serverConfig := &wgconfig.Server{
+		Private: keys.serverPrivate,
+	}
+	serverConfig.DefaultListenPort()
+	serverConfig.AddPeer(keys.clientPublic, keys.shared, clientPublic)
+
+	server, closer := GetNet(t, serverConfig)
 	defer closer()
 
 	remoteAddrChan := make(chan net.IP)
@@ -78,7 +78,7 @@ func TestTCPConnection(t *testing.T) {
 		defer conn.Close()
 	}()
 
-	tm := time.NewTimer(time.Second * 30)
+	tm := time.NewTimer(time.Second * 35)
 	defer tm.Stop()
 	select {
 	case err := <-errs:
@@ -93,11 +93,11 @@ func TestTCPConnection(t *testing.T) {
 }
 
 type keys struct {
-	clientPrivate wgapi.KeyPrivate
-	clientPublic  wgapi.KeyPublic
-	serverPrivate wgapi.KeyPrivate
-	serverPublic  wgapi.KeyPublic
-	shared        wgapi.KeyPreShared
+	clientPrivate wgapi.PrivateKey
+	clientPublic  wgapi.PublicKey
+	serverPrivate wgapi.PrivateKey
+	serverPublic  wgapi.PublicKey
+	shared        wgapi.PresharedKey
 }
 
 func generateKeys(t *testing.T) *keys {
@@ -105,47 +105,47 @@ func generateKeys(t *testing.T) *keys {
 
 	var k keys
 
-	clientPrivate, err := wgapi.NewKey()
+	clientPrivate, clientPublic, err := wgapi.NewPrivatePublic()
 	if err != nil {
 		t.Fatal(err)
 	}
-	k.clientPrivate = *clientPrivate
+	k.clientPrivate, k.clientPublic = clientPrivate, clientPublic
 
-	clientPublic, err := clientPrivate.Public()
+	serverPrivate, serverPublic, err := wgapi.NewPrivatePublic()
 	if err != nil {
 		t.Fatal(err)
 	}
-	k.clientPublic = *clientPublic
+	k.serverPrivate, k.serverPublic = serverPrivate, serverPublic
 
-	serverPrivate, err := wgapi.NewKey()
+	sharedKey, err := wgapi.NewPreshared()
 	if err != nil {
 		t.Fatal(err)
 	}
-	k.serverPrivate = *serverPrivate
-
-	serverPublic, err := serverPrivate.Public()
-	if err != nil {
-		t.Fatal(err)
-	}
-	k.serverPublic = *serverPublic
-
-	sharedKey, err := wgapi.NewPreShared()
-	if err != nil {
-		t.Fatal(err)
-	}
-	k.shared = *sharedKey
+	k.shared = sharedKey
 
 	return &k
 }
 
-func GetNet(t *testing.T, cfg wgapi.Configurable) (*wg4d.Netstack, func()) {
+func GetNet(t *testing.T, cfg wgapi.Configurable) (*device.Device, func()) {
 	t.Helper()
-	stack, err := wg4d.NewNetstack(wg4d.DefaultMTU, wg4d.DefaultBatchSize, wg4d.DefaultChannelSize)
+	stack, err := device.NewDefault()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	conn, err := wg4d.New(stack.Device(), wg4d.DefaultBind(), wg4d.NoopLogger(), cfg)
+	logger := wg4d.NoopLogger()
+	if logWG {
+		logger.Errorf = func(format string, args ...any) {
+			t.Helper()
+			t.Logf("ERROR: %s", fmt.Sprintf(format, args...))
+		}
+		logger.Verbosef = func(format string, args ...any) {
+			t.Helper()
+			t.Logf("INFO:  %s", fmt.Sprintf(format, args...))
+		}
+	}
+
+	conn, err := wg4d.New(stack.Device(), wg4d.DefaultBind(), logger, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

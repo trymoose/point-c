@@ -1,3 +1,4 @@
+// Package wg4d helps with the creation and usage of userland wireguard networks.
 package wg4d
 
 import (
@@ -10,11 +11,13 @@ import (
 	"sync"
 )
 
-type Connection struct {
+// Wireguard handles configuring and closing a wireguard client/server.
+type Wireguard struct {
 	dev   *device.Device
 	close sync.Once
 }
 
+// SlogLogger allows the created of a [device.Logger] backed by a given [slog.Logger].
 func SlogLogger(logger *slog.Logger) *device.Logger {
 	if logger == nil {
 		logger = slog.Default()
@@ -25,6 +28,7 @@ func SlogLogger(logger *slog.Logger) *device.Logger {
 	}
 }
 
+// NoopLogger is a logger that does not output anything.
 func NoopLogger() *device.Logger {
 	return &device.Logger{
 		Verbosef: func(string, ...any) {},
@@ -32,12 +36,14 @@ func NoopLogger() *device.Logger {
 	}
 }
 
+// DefaultBind is the default wireguard UDP listener..
 func DefaultBind() conn.Bind {
 	return conn.NewDefaultBind()
 }
 
-func New(tun tun.Device, bind conn.Bind, logger *device.Logger, cfg wgapi.Configurable) (*Connection, error) {
-	c := &Connection{dev: device.NewDevice(tun, bind, logger)}
+// New allows the creating of a new wireguard server/client.
+func New(tun tun.Device, bind conn.Bind, logger *device.Logger, cfg wgapi.Configurable) (*Wireguard, error) {
+	c := &Wireguard{dev: device.NewDevice(tun, bind, logger)}
 
 	if err := c.dev.IpcSetOperation(cfg.WGConfig()); err != nil {
 		c.dev.Close()
@@ -51,7 +57,8 @@ func New(tun tun.Device, bind conn.Bind, logger *device.Logger, cfg wgapi.Config
 	return c, nil
 }
 
-func (c *Connection) GetConfig() (wgapi.IPC, error) {
+// GetConfig gets the raw config from an IPC get=1 operation.
+func (c *Wireguard) GetConfig() (wgapi.IPC, error) {
 	var ipc wgapi.IPCGet
 	if err := c.dev.IpcGetOperation(&ipc); err != nil {
 		return nil, err
@@ -59,7 +66,8 @@ func (c *Connection) GetConfig() (wgapi.IPC, error) {
 	return ipc.Value()
 }
 
-func (c *Connection) Close() (err error) {
+// Close closes the wireguard server/client, rendering it unusable in the future.
+func (c *Wireguard) Close() (err error) {
 	c.close.Do(func() {
 		err = c.dev.Down()
 		c.dev.Close()
