@@ -8,7 +8,6 @@ require (
 	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090
 	golang.zx2c4.com/wireguard v0.0.0-20231022001213-2e0774f246fb
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
-	gopkg.in/yaml.v3 v3.0.1
 	gvisor.dev/gvisor v0.0.0-20231104011432-48a6d7d5bd0b
 )
 
