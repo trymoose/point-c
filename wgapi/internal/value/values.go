@@ -3,7 +3,7 @@ package value
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/trymoose/wg4d/wgapi/internal/value/wgkey"
+	"github.com/trymoose/point-c/wgapi/internal/value/wgkey"
 	"golang.org/x/exp/constraints"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	"net"

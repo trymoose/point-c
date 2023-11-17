@@ -8,10 +8,10 @@ package wgapi
 import (
 	"bytes"
 	"fmt"
-	"github.com/trymoose/wg4d/wgapi/internal/core"
-	"github.com/trymoose/wg4d/wgapi/internal/key"
-	"github.com/trymoose/wg4d/wgapi/internal/value"
-	"github.com/trymoose/wg4d/wgapi/internal/value/wgkey"
+	"github.com/trymoose/point-c/wgapi/internal"
+	"github.com/trymoose/point-c/wgapi/internal/key"
+	"github.com/trymoose/point-c/wgapi/internal/value"
+	"github.com/trymoose/point-c/wgapi/internal/value/wgkey"
 	"golang.zx2c4.com/wireguard/ipc"
 	"io"
 	"net"
@@ -24,7 +24,7 @@ type (
 	}
 
 	// IPCKeyValue is string key and value pair. The value is represented by [fmt.Stringer].
-	IPCKeyValue = core.KeyValue
+	IPCKeyValue = internal.KeyValue
 )
 
 // IPC is an IPC operation as documented by [wireguard cross-platform documentation].

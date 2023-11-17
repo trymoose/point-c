@@ -4,15 +4,15 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/trymoose/wg4d/wgapi/internal/core"
-	"github.com/trymoose/wg4d/wgapi/internal/value"
-	"github.com/trymoose/wg4d/wgapi/internal/value/wgkey"
+	"github.com/trymoose/point-c/wgapi/internal"
+	"github.com/trymoose/point-c/wgapi/internal/value"
+	"github.com/trymoose/point-c/wgapi/internal/value/wgkey"
 	"golang.org/x/exp/constraints"
 	"net"
 	"strconv"
 )
 
-type IPCKeyValue = core.KeyValue
+type IPCKeyValue = internal.KeyValue
 
 func ParseIPNet[K fmt.Stringer](b []byte) (IPCKeyValue, error) {
 	_, addr, err := net.ParseCIDR(string(b))

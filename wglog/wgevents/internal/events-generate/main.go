@@ -111,6 +111,9 @@ func (e *Events) UnmarshalYAML(n *yaml.Node) error {
 	*e = make([]*Event, 0, len(m))
 	for name, value := range m {
 		value.Name = name
+		if value.Nice == "" {
+			value.Nice = value.Format
+		}
 		*e = append(*e, value)
 	}
 	slices.SortFunc(*e, func(a, b *Event) int { return strings.Compare(a.Name, b.Name) })

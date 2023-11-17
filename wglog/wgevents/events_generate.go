@@ -147,7 +147,7 @@ type EventBindUpdated struct{}
 func (e *EventBindUpdated) IsErrorf() bool      { return false }
 func (*EventBindUpdated) Format() string        { return "UDP bind has been updated" }
 func (e *EventBindUpdated) Args() []any         { return []any{} }
-func (*EventBindUpdated) Nice() string          { return "" }
+func (*EventBindUpdated) Nice() string          { return "UDP bind has been updated" }
 func (e *EventBindUpdated) Slog(l *slog.Logger) { l.Info(e.Nice()) }
 
 var _ Event = (*EventCookieResponseInvalid)(nil)
@@ -159,7 +159,7 @@ func (*EventCookieResponseInvalid) Format() string {
 	return "Could not decrypt invalid cookie response"
 }
 func (e *EventCookieResponseInvalid) Args() []any         { return []any{} }
-func (*EventCookieResponseInvalid) Nice() string          { return "" }
+func (*EventCookieResponseInvalid) Nice() string          { return "Could not decrypt invalid cookie response" }
 func (e *EventCookieResponseInvalid) Slog(l *slog.Logger) { l.Warn(e.Nice()) }
 
 var _ Event = (*EventCreateCookieReplyFailed)(nil)
@@ -217,7 +217,7 @@ type EventDecodeCookieReplyFailed struct{}
 func (e *EventDecodeCookieReplyFailed) IsErrorf() bool      { return false }
 func (*EventDecodeCookieReplyFailed) Format() string        { return "Failed to decode cookie reply" }
 func (e *EventDecodeCookieReplyFailed) Args() []any         { return []any{} }
-func (*EventDecodeCookieReplyFailed) Nice() string          { return "" }
+func (*EventDecodeCookieReplyFailed) Nice() string          { return "Failed to decode cookie reply" }
 func (e *EventDecodeCookieReplyFailed) Slog(l *slog.Logger) { l.Warn(e.Nice()) }
 
 var _ Event = (*EventDecryptionWorkerStopped)(nil)
@@ -256,7 +256,7 @@ type EventDeviceClosed struct{}
 func (e *EventDeviceClosed) IsErrorf() bool      { return false }
 func (*EventDeviceClosed) Format() string        { return "Device closed" }
 func (e *EventDeviceClosed) Args() []any         { return []any{} }
-func (*EventDeviceClosed) Nice() string          { return "" }
+func (*EventDeviceClosed) Nice() string          { return "Device closed" }
 func (e *EventDeviceClosed) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventDeviceClosing)(nil)
@@ -266,7 +266,7 @@ type EventDeviceClosing struct{}
 func (e *EventDeviceClosing) IsErrorf() bool      { return false }
 func (*EventDeviceClosing) Format() string        { return "Device closing" }
 func (e *EventDeviceClosing) Args() []any         { return []any{} }
-func (*EventDeviceClosing) Nice() string          { return "" }
+func (*EventDeviceClosing) Nice() string          { return "Device closing" }
 func (e *EventDeviceClosing) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventDroppedPacketsFromMultiSegmentRead)(nil)
@@ -294,7 +294,7 @@ type EventEventWorkerStarted struct{}
 func (e *EventEventWorkerStarted) IsErrorf() bool      { return false }
 func (*EventEventWorkerStarted) Format() string        { return "Routine: event worker - started" }
 func (e *EventEventWorkerStarted) Args() []any         { return []any{} }
-func (*EventEventWorkerStarted) Nice() string          { return "" }
+func (*EventEventWorkerStarted) Nice() string          { return "Routine: event worker - started" }
 func (e *EventEventWorkerStarted) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventEventWorkerStopped)(nil)
@@ -304,7 +304,7 @@ type EventEventWorkerStopped struct{}
 func (e *EventEventWorkerStopped) IsErrorf() bool      { return false }
 func (*EventEventWorkerStopped) Format() string        { return "Routine: event worker - stopped" }
 func (e *EventEventWorkerStopped) Args() []any         { return []any{} }
-func (*EventEventWorkerStopped) Nice() string          { return "" }
+func (*EventEventWorkerStopped) Nice() string          { return "Routine: event worker - stopped" }
 func (e *EventEventWorkerStopped) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventHandshakeDidNotComplete)(nil)
@@ -408,8 +408,10 @@ func (e *EventInitiationMessageDecodeFailed) IsErrorf() bool { return true }
 func (*EventInitiationMessageDecodeFailed) Format() string {
 	return "Failed to decode initiation message"
 }
-func (e *EventInitiationMessageDecodeFailed) Args() []any         { return []any{} }
-func (*EventInitiationMessageDecodeFailed) Nice() string          { return "" }
+func (e *EventInitiationMessageDecodeFailed) Args() []any { return []any{} }
+func (*EventInitiationMessageDecodeFailed) Nice() string {
+	return "Failed to decode initiation message"
+}
 func (e *EventInitiationMessageDecodeFailed) Slog(l *slog.Logger) { l.Error(e.Nice()) }
 
 var _ Event = (*EventInterfaceCloseIgnoreRequestedState)(nil)
@@ -437,7 +439,7 @@ type EventInterfaceDownRequested struct{}
 func (e *EventInterfaceDownRequested) IsErrorf() bool      { return false }
 func (*EventInterfaceDownRequested) Format() string        { return "Interface down requested" }
 func (e *EventInterfaceDownRequested) Args() []any         { return []any{} }
-func (*EventInterfaceDownRequested) Nice() string          { return "" }
+func (*EventInterfaceDownRequested) Nice() string          { return "Interface down requested" }
 func (e *EventInterfaceDownRequested) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventInterfaceStateChanged)(nil)
@@ -465,7 +467,7 @@ type EventInterfaceUpRequested struct{}
 func (e *EventInterfaceUpRequested) IsErrorf() bool      { return false }
 func (*EventInterfaceUpRequested) Format() string        { return "Interface up requested" }
 func (e *EventInterfaceUpRequested) Args() []any         { return []any{} }
-func (*EventInterfaceUpRequested) Nice() string          { return "" }
+func (*EventInterfaceUpRequested) Nice() string          { return "Interface up requested" }
 func (e *EventInterfaceUpRequested) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventInvalidMAC1)(nil)
@@ -475,7 +477,7 @@ type EventInvalidMAC1 struct{}
 func (e *EventInvalidMAC1) IsErrorf() bool      { return false }
 func (*EventInvalidMAC1) Format() string        { return "Received packet with invalid mac1" }
 func (e *EventInvalidMAC1) Args() []any         { return []any{} }
-func (*EventInvalidMAC1) Nice() string          { return "" }
+func (*EventInvalidMAC1) Nice() string          { return "Received packet with invalid mac1" }
 func (e *EventInvalidMAC1) Slog(l *slog.Logger) { l.Warn(e.Nice()) }
 
 var _ Event = (*EventInvalidOperation)(nil)
@@ -498,8 +500,10 @@ func (e *EventInvalidPacketInHandshakeQueue) IsErrorf() bool { return true }
 func (*EventInvalidPacketInHandshakeQueue) Format() string {
 	return "Invalid packet ended up in the handshake queue"
 }
-func (e *EventInvalidPacketInHandshakeQueue) Args() []any         { return []any{} }
-func (*EventInvalidPacketInHandshakeQueue) Nice() string          { return "" }
+func (e *EventInvalidPacketInHandshakeQueue) Args() []any { return []any{} }
+func (*EventInvalidPacketInHandshakeQueue) Nice() string {
+	return "Invalid packet ended up in the handshake queue"
+}
 func (e *EventInvalidPacketInHandshakeQueue) Slog(l *slog.Logger) { l.Error(e.Nice()) }
 
 var _ Event = (*EventLoadMTUFailed)(nil)
@@ -546,7 +550,7 @@ type EventMessageUnknownType struct{}
 func (e *EventMessageUnknownType) IsErrorf() bool      { return false }
 func (*EventMessageUnknownType) Format() string        { return "Received message with unknown type" }
 func (e *EventMessageUnknownType) Args() []any         { return []any{} }
-func (*EventMessageUnknownType) Nice() string          { return "" }
+func (*EventMessageUnknownType) Nice() string          { return "Received message with unknown type" }
 func (e *EventMessageUnknownType) Slog(l *slog.Logger) { l.Warn(e.Nice()) }
 
 var _ Event = (*EventNegativeMTU)(nil)
@@ -595,7 +599,7 @@ type EventPacketIPVersionUnknown struct{}
 func (e *EventPacketIPVersionUnknown) IsErrorf() bool      { return false }
 func (*EventPacketIPVersionUnknown) Format() string        { return "Received packet with unknown IP version" }
 func (e *EventPacketIPVersionUnknown) Args() []any         { return []any{} }
-func (*EventPacketIPVersionUnknown) Nice() string          { return "" }
+func (*EventPacketIPVersionUnknown) Nice() string          { return "Received packet with unknown IP version" }
 func (e *EventPacketIPVersionUnknown) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventPacketReceiveFailed)(nil)
@@ -745,7 +749,7 @@ type EventResponseMessageDecodeFailed struct{}
 func (e *EventResponseMessageDecodeFailed) IsErrorf() bool      { return true }
 func (*EventResponseMessageDecodeFailed) Format() string        { return "Failed to decode response message" }
 func (e *EventResponseMessageDecodeFailed) Args() []any         { return []any{} }
-func (*EventResponseMessageDecodeFailed) Nice() string          { return "" }
+func (*EventResponseMessageDecodeFailed) Nice() string          { return "Failed to decode response message" }
 func (e *EventResponseMessageDecodeFailed) Slog(l *slog.Logger) { l.Error(e.Nice()) }
 
 var _ Event = (*EventRetryingHandshake)(nil)
@@ -1017,7 +1021,7 @@ type EventTUNReaderStarted struct{}
 func (e *EventTUNReaderStarted) IsErrorf() bool      { return false }
 func (*EventTUNReaderStarted) Format() string        { return "Routine: TUN reader - started" }
 func (e *EventTUNReaderStarted) Args() []any         { return []any{} }
-func (*EventTUNReaderStarted) Nice() string          { return "" }
+func (*EventTUNReaderStarted) Nice() string          { return "Routine: TUN reader - started" }
 func (e *EventTUNReaderStarted) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventTUNReaderStopped)(nil)
@@ -1027,7 +1031,7 @@ type EventTUNReaderStopped struct{}
 func (e *EventTUNReaderStopped) IsErrorf() bool      { return false }
 func (*EventTUNReaderStopped) Format() string        { return "Routine: TUN reader - stopped" }
 func (e *EventTUNReaderStopped) Args() []any         { return []any{} }
-func (*EventTUNReaderStopped) Nice() string          { return "" }
+func (*EventTUNReaderStopped) Nice() string          { return "Routine: TUN reader - stopped" }
 func (e *EventTUNReaderStopped) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventTUNWriteFailed)(nil)
@@ -1097,7 +1101,7 @@ type EventUAPIRemovingAllPeers struct{}
 func (e *EventUAPIRemovingAllPeers) IsErrorf() bool      { return false }
 func (*EventUAPIRemovingAllPeers) Format() string        { return "UAPI: Removing all peers" }
 func (e *EventUAPIRemovingAllPeers) Args() []any         { return []any{} }
-func (*EventUAPIRemovingAllPeers) Nice() string          { return "" }
+func (*EventUAPIRemovingAllPeers) Nice() string          { return "UAPI: Removing all peers" }
 func (e *EventUAPIRemovingAllPeers) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventUAPIRemovingPeer)(nil)
@@ -1131,7 +1135,7 @@ type EventUAPIUpdatingFWMark struct{}
 func (e *EventUAPIUpdatingFWMark) IsErrorf() bool      { return false }
 func (*EventUAPIUpdatingFWMark) Format() string        { return "UAPI: Updating fwmark" }
 func (e *EventUAPIUpdatingFWMark) Args() []any         { return []any{} }
-func (*EventUAPIUpdatingFWMark) Nice() string          { return "" }
+func (*EventUAPIUpdatingFWMark) Nice() string          { return "UAPI: Updating fwmark" }
 func (e *EventUAPIUpdatingFWMark) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventUAPIUpdatingListenPort)(nil)
@@ -1141,7 +1145,7 @@ type EventUAPIUpdatingListenPort struct{}
 func (e *EventUAPIUpdatingListenPort) IsErrorf() bool      { return false }
 func (*EventUAPIUpdatingListenPort) Format() string        { return "UAPI: Updating listen port" }
 func (e *EventUAPIUpdatingListenPort) Args() []any         { return []any{} }
-func (*EventUAPIUpdatingListenPort) Nice() string          { return "" }
+func (*EventUAPIUpdatingListenPort) Nice() string          { return "UAPI: Updating listen port" }
 func (e *EventUAPIUpdatingListenPort) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventUAPIUpdatingPersistentKeepalive)(nil)
@@ -1181,7 +1185,7 @@ type EventUAPIUpdatingPrivateKey struct{}
 func (e *EventUAPIUpdatingPrivateKey) IsErrorf() bool      { return false }
 func (*EventUAPIUpdatingPrivateKey) Format() string        { return "UAPI: Updating private key" }
 func (e *EventUAPIUpdatingPrivateKey) Args() []any         { return []any{} }
-func (*EventUAPIUpdatingPrivateKey) Nice() string          { return "" }
+func (*EventUAPIUpdatingPrivateKey) Nice() string          { return "UAPI: Updating private key" }
 func (e *EventUAPIUpdatingPrivateKey) Slog(l *slog.Logger) { l.Debug(e.Nice()) }
 
 var _ Event = (*EventUDPGSODisabled)(nil)
@@ -1242,682 +1246,682 @@ func (e *EventAny) Slog(l *slog.Logger) {
 	}
 }
 
-func Events(e chan<- Event) *device.Logger {
+func Events(fn func(Event)) *device.Logger {
 	return &device.Logger{
 		Verbosef: func(format string, args ...any) {
 			switch format {
 			case "UDP bind has been updated":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventBindUpdated{}
+				fn(&EventBindUpdated{})
 			case "Could not decrypt invalid cookie response":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventCookieResponseInvalid{}
+				fn(&EventCookieResponseInvalid{})
 			case "Failed to decode cookie reply":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventDecodeCookieReplyFailed{}
+				fn(&EventDecodeCookieReplyFailed{})
 			case "Routine: decryption worker %d - stopped":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventDecryptionWorkerStopped{ID: v0}
+				fn(&EventDecryptionWorkerStopped{ID: v0})
 			case "Device closed":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventDeviceClosed{}
+				fn(&EventDeviceClosed{})
 			case "Device closing":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventDeviceClosing{}
+				fn(&EventDeviceClosing{})
 			case "Dropped some packets from multi-segment read: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventDroppedPacketsFromMultiSegmentRead{Err: v0}
+				fn(&EventDroppedPacketsFromMultiSegmentRead{Err: v0})
 			case "Routine: event worker - started":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventEventWorkerStarted{}
+				fn(&EventEventWorkerStarted{})
 			case "Routine: event worker - stopped":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventEventWorkerStopped{}
+				fn(&EventEventWorkerStopped{})
 			case "%s - Handshake did not complete after %d attempts, giving up":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v1, ok := args[1].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventHandshakeDidNotComplete{Peer: v0, Attempts: v1}
+				fn(&EventHandshakeDidNotComplete{Peer: v0, Attempts: v1})
 			case "%v - ConsumeMessageInitiation: handshake flood":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventHandshakeFlood{Peer: v0}
+				fn(&EventHandshakeFlood{Peer: v0})
 			case "%v - ConsumeMessageInitiation: handshake replay @ %v":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v1, ok := args[1].(tai64n.Timestamp)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventHandshakeReplay{Peer: v0, Timestamp: v1}
+				fn(&EventHandshakeReplay{Peer: v0, Timestamp: v1})
 			case "IPv4 packet with disallowed source address from %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventIPv4PacketDisallowed{Peer: v0}
+				fn(&EventIPv4PacketDisallowed{Peer: v0})
 			case "IPv6 packet with disallowed source address from %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventIPv6PacketDisallowed{Peer: v0}
+				fn(&EventIPv6PacketDisallowed{Peer: v0})
 			case "Interface closed, ignored requested state %s":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(fmt.Stringer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventInterfaceCloseIgnoreRequestedState{Want: v0}
+				fn(&EventInterfaceCloseIgnoreRequestedState{Want: v0})
 			case "Interface down requested":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventInterfaceDownRequested{}
+				fn(&EventInterfaceDownRequested{})
 			case "Interface state was %s, requested %s, now %s":
 				if len(args) != 3 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(fmt.Stringer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v1, ok := args[1].(fmt.Stringer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v2, ok := args[2].(fmt.Stringer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventInterfaceStateChanged{Old: v0, Want: v1, Now: v2}
+				fn(&EventInterfaceStateChanged{Old: v0, Want: v1, Now: v2})
 			case "Interface up requested":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventInterfaceUpRequested{}
+				fn(&EventInterfaceUpRequested{})
 			case "Received packet with invalid mac1":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventInvalidMAC1{}
+				fn(&EventInvalidMAC1{})
 			case "MTU updated: %v (too large, capped at %v)":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v1, ok := args[1].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventMTUTooLarge{MTU: v0, Cap: v1}
+				fn(&EventMTUTooLarge{MTU: v0, Cap: v1})
 			case "MTU updated: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventMTUUpdated{MTU: v0}
+				fn(&EventMTUUpdated{MTU: v0})
 			case "Received message with unknown type":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventMessageUnknownType{}
+				fn(&EventMessageUnknownType{})
 			case "Packet with invalid IP version from %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventPacketIPVersionInvalid{Peer: v0}
+				fn(&EventPacketIPVersionInvalid{Peer: v0})
 			case "Received packet with unknown IP version":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventPacketIPVersionUnknown{}
+				fn(&EventPacketIPVersionUnknown{})
 			case "Failed to receive %s packet: %v":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(string)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v1, ok := args[1].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventPacketReceiveFailed{RecvName: v0, Err: v1}
+				fn(&EventPacketReceiveFailed{RecvName: v0, Err: v1})
 			case "%v - Starting":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventPeerStarting{Peer: v0}
+				fn(&EventPeerStarting{Peer: v0})
 			case "%v - Stopping":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventPeerStopping{Peer: v0}
+				fn(&EventPeerStopping{Peer: v0})
 			case "%v - Received handshake initiation":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventReceivedHandshakeInitiation{Peer: v0}
+				fn(&EventReceivedHandshakeInitiation{Peer: v0})
 			case "%v - Received handshake response":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventReceivedHandshakeResponse{Peer: v0}
+				fn(&EventReceivedHandshakeResponse{Peer: v0})
 			case "Received invalid initiation message from %s":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(string)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventReceivedInvalidInitiation{Destination: v0}
+				fn(&EventReceivedInvalidInitiation{Destination: v0})
 			case "Received invalid response message from %s":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(string)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventReceivedInvalidResponse{Destination: v0}
+				fn(&EventReceivedInvalidResponse{Destination: v0})
 			case "Receiving cookie response from %s":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(string)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventReceivingCookieResponse{Destination: v0}
+				fn(&EventReceivingCookieResponse{Destination: v0})
 			case "%v - Receiving keepalive packet":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventReceivingKeepalivePacket{Peer: v0}
+				fn(&EventReceivingKeepalivePacket{Peer: v0})
 			case "%s - Removing all keys, since we haven't received a new one in %d seconds":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v1, ok := args[1].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventRemovingAllKeys{Peer: v0, Timeout: v1}
+				fn(&EventRemovingAllKeys{Peer: v0, Timeout: v1})
 			case "%s - Handshake did not complete after %d seconds, retrying (try %d)":
 				if len(args) != 3 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v1, ok := args[1].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v2, ok := args[2].(uint32)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventRetryingHandshake{Peer: v0, Timeout: v1, Try: v2}
+				fn(&EventRetryingHandshake{Peer: v0, Timeout: v1, Try: v2})
 			case "%s - Retrying handshake because we stopped hearing back after %d seconds":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v1, ok := args[1].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventRetryingHandshakeNoResponse{Peer: v0, Timeout: v1}
+				fn(&EventRetryingHandshakeNoResponse{Peer: v0, Timeout: v1})
 			case "Sending cookie response for denied handshake message for %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(string)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventSendCookieDenied{Destination: v0}
+				fn(&EventSendCookieDenied{Destination: v0})
 			case "%v - Sending handshake initiation":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventSendingHandshakeInitiation{Peer: v0}
+				fn(&EventSendingHandshakeInitiation{Peer: v0})
 			case "%v - Sending handshake response":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventSendingHandshakeResponse{Peer: v0}
+				fn(&EventSendingHandshakeResponse{Peer: v0})
 			case "%v - Sending keepalive packet":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventSendingKeepalivePacket{Peer: v0}
+				fn(&EventSendingKeepalivePacket{Peer: v0})
 			case "%v - Routine: sequential sender - stopped":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventSequentialReaderStopped{Peer: v0}
+				fn(&EventSequentialReaderStopped{Peer: v0})
 			case "%v - Routine: sequential receiver - started":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventSequentialReceiverStarted{Peer: v0}
+				fn(&EventSequentialReceiverStarted{Peer: v0})
 			case "%v - Routine: sequential receiver - stopped":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventSequentialReceiverStopped{Peer: v0}
+				fn(&EventSequentialReceiverStopped{Peer: v0})
 			case "%v - Routine: sequential sender - started":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventSequentialSenderStarted{Peer: v0}
+				fn(&EventSequentialSenderStarted{Peer: v0})
 			case "Routine: decryption worker %d - started":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventStartedDecryptionWorker{ID: v0}
+				fn(&EventStartedDecryptionWorker{ID: v0})
 			case "Routine: encryption worker %d - started":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventStartedEncryptionWorker{ID: v0}
+				fn(&EventStartedEncryptionWorker{ID: v0})
 			case "Routine: handshake worker %d - started":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventStartedHandshakeWorker{ID: v0}
+				fn(&EventStartedHandshakeWorker{ID: v0})
 			case "Routine: receive incoming %s - stopped":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(string)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventStartedReceivingIncoming{RecvName: v0}
+				fn(&EventStartedReceivingIncoming{RecvName: v0})
 			case "Routine: encryption worker %d - stopped":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventStoppedEncryptionWorker{ID: v0}
+				fn(&EventStoppedEncryptionWorker{ID: v0})
 			case "Routine: handshake worker %d - stopped":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventStoppedHandshakeWorker{ID: v0}
+				fn(&EventStoppedHandshakeWorker{ID: v0})
 			case "Routine: receive incoming %s - started":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(string)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventStoppedReceivingIncoming{RecvName: v0}
+				fn(&EventStoppedReceivingIncoming{RecvName: v0})
 			case "Routine: TUN reader - started":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventTUNReaderStarted{}
+				fn(&EventTUNReaderStarted{})
 			case "Routine: TUN reader - stopped":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventTUNReaderStopped{}
+				fn(&EventTUNReaderStopped{})
 			case "%v - UAPI: Adding allowedip":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIAddingAllowedIP{Peer: v0}
+				fn(&EventUAPIAddingAllowedIP{Peer: v0})
 			case "%v - UAPI: Created":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPICreated{Peer: v0}
+				fn(&EventUAPICreated{Peer: v0})
 			case "%v - UAPI: Removing all allowedips":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIRemovingAllAllowedIPs{Peer: v0}
+				fn(&EventUAPIRemovingAllAllowedIPs{Peer: v0})
 			case "UAPI: Removing all peers":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIRemovingAllPeers{}
+				fn(&EventUAPIRemovingAllPeers{})
 			case "%v - UAPI: Removing":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIRemovingPeer{Peer: v0}
+				fn(&EventUAPIRemovingPeer{Peer: v0})
 			case "%v - UAPI: Updating endpoint":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIUpdatingEndpoint{Peer: v0}
+				fn(&EventUAPIUpdatingEndpoint{Peer: v0})
 			case "UAPI: Updating fwmark":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIUpdatingFWMark{}
+				fn(&EventUAPIUpdatingFWMark{})
 			case "UAPI: Updating listen port":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIUpdatingListenPort{}
+				fn(&EventUAPIUpdatingListenPort{})
 			case "%v - UAPI: Updating persistent keepalive interval":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIUpdatingPersistentKeepalive{Peer: v0}
+				fn(&EventUAPIUpdatingPersistentKeepalive{Peer: v0})
 			case "%v - UAPI: Updating preshared key":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIUpdatingPresharedKey{Peer: v0}
+				fn(&EventUAPIUpdatingPresharedKey{Peer: v0})
 			case "UAPI: Updating private key":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: false}
+					fn(&EventAny{format: format, args: args, error: false})
 					return
 				}
-				e <- &EventUAPIUpdatingPrivateKey{}
+				fn(&EventUAPIUpdatingPrivateKey{})
 			case "disabled UDP GSO on %s, NIC(s) may not support checksum offload":
-				var ev EventUDPGSODisabled
-				if !parser.ParseUDPGSODisabled(&ev, format, args...) {
-					e <- &EventAny{format: format, args: args, error: false}
+			default:
+				var ev64 EventUDPGSODisabled
+				if parser.ParseUDPGSODisabled(&ev64, format, args...) {
+					fn(&ev64)
 					return
 				}
-			default:
-				e <- &EventAny{format: format, args: args, error: false}
+				fn(&EventAny{format: format, args: args, error: false})
 				return
 			}
 		},
@@ -1925,230 +1929,230 @@ func Events(e chan<- Event) *device.Logger {
 			switch format {
 			case "Trouble determining MTU, assuming default: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventAssumingDefaultMTU{Err: v0}
+				fn(&EventAssumingDefaultMTU{Err: v0})
 			case "Bind close failed: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventBindCloseFailed{Err: v0}
+				fn(&EventBindCloseFailed{Err: v0})
 			case "Failed to create cookie reply: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventCreateCookieReplyFailed{Err: v0}
+				fn(&EventCreateCookieReplyFailed{Err: v0})
 			case "%v - Failed to create initiation message: %v":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v1, ok := args[1].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventCreateInitiationMessageFailed{Peer: v0, Err: v1}
+				fn(&EventCreateInitiationMessageFailed{Peer: v0, Err: v1})
 			case "%v - Failed to create response message: %v":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v1, ok := args[1].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventCreateResponseMessageFailed{Peer: v0, Err: v1}
+				fn(&EventCreateResponseMessageFailed{Peer: v0, Err: v1})
 			case "%v - Failed to derive keypair: %v":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v1, ok := args[1].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventDeriveKeypairFailed{Peer: v0, Err: v1}
+				fn(&EventDeriveKeypairFailed{Peer: v0, Err: v1})
 			case "%v - Failed to send handshake response: %v":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v1, ok := args[1].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventHandshakeSendFailed{Peer: v0, Err: v1}
+				fn(&EventHandshakeSendFailed{Peer: v0, Err: v1})
 			case "Failed to decode initiation message":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventInitiationMessageDecodeFailed{}
+				fn(&EventInitiationMessageDecodeFailed{})
 			case "invalid UAPI operation: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(string)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventInvalidOperation{Op: v0}
+				fn(&EventInvalidOperation{Op: v0})
 			case "Invalid packet ended up in the handshake queue":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventInvalidPacketInHandshakeQueue{}
+				fn(&EventInvalidPacketInHandshakeQueue{})
 			case "Failed to load updated MTU of device: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventLoadMTUFailed{Err: v0}
+				fn(&EventLoadMTUFailed{Err: v0})
 			case "MTU not updated to negative value: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(int)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventNegativeMTU{MTU: v0}
+				fn(&EventNegativeMTU{MTU: v0})
 			case "%v - Failed to send data packets: %v":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v1, ok := args[1].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventPacketDataSendFailed{Peer: v0, Err: v1}
+				fn(&EventPacketDataSendFailed{Peer: v0, Err: v1})
 			case "Failed to decode response message":
 				if len(args) != 0 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventResponseMessageDecodeFailed{}
+				fn(&EventResponseMessageDecodeFailed{})
 			case "%v - Failed to send handshake initiation: %v":
 				if len(args) != 2 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(*device.Peer)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v1, ok := args[1].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventSendHandshakeInitiationFailed{Peer: v0, Err: v1}
+				fn(&EventSendHandshakeInitiationFailed{Peer: v0, Err: v1})
 			case "Failed to write packets to TUN device: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventTUNWriteFailed{Err: v0}
+				fn(&EventTUNWriteFailed{Err: v0})
 			case "Failed to read packet from TUN device: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventTunPacketReadFailed{Err: v0}
+				fn(&EventTunPacketReadFailed{Err: v0})
 			case "Unable to update bind: %v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventUpdateBind{Err: v0}
+				fn(&EventUpdateBind{Err: v0})
 			case "%v":
 				if len(args) != 1 {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
 				v0, ok := args[0].(error)
 				if !ok {
-					e <- &EventAny{format: format, args: args, error: true}
+					fn(&EventAny{format: format, args: args, error: true})
 					return
 				}
-				e <- &EventValue{Err: v0}
+				fn(&EventValue{Err: v0})
 			default:
-				e <- &EventAny{format: format, args: args, error: true}
+				fn(&EventAny{format: format, args: args, error: true})
 				return
 			}
 		},

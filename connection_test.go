@@ -1,14 +1,16 @@
-package wg4d_test
+package pointc_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/trymoose/wg4d"
-	"github.com/trymoose/wg4d/device"
-	"github.com/trymoose/wg4d/wgapi"
-	"github.com/trymoose/wg4d/wgapi/wgconfig"
+	pointc "github.com/trymoose/point-c"
+	"github.com/trymoose/point-c/wgapi"
+	"github.com/trymoose/point-c/wgapi/wgconfig"
+	"github.com/trymoose/point-c/wglog"
 	"golang.org/x/exp/rand"
+	"golang.zx2c4.com/wireguard/conn"
+	"golang.zx2c4.com/wireguard/conn/bindtest"
+	"golang.zx2c4.com/wireguard/device"
 	"math"
 	"net"
 	"testing"
@@ -18,143 +20,147 @@ import (
 const logWG = false
 
 func TestTCPConnection(t *testing.T) {
-	keys := generateKeys(t)
-	wgPort := uint16(51820)
-	clientPublic := net.IPv4(192, 168, 123, 2)
-
-	clientConfig := &wgconfig.Client{
-		Private:   keys.clientPrivate,
-		Public:    keys.serverPublic,
-		PreShared: keys.shared,
-		Endpoint:  net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: int(wgPort)},
+	pair := netPair(t)
+	if pair == nil {
+		t.Fail()
+		return
 	}
-	clientConfig.AllowAllIPs()
-	clientConfig.DefaultPersistentKeepAlive()
-
-	client, closer := GetNet(t, clientConfig)
-	defer closer()
-
-	serverConfig := &wgconfig.Server{
-		Private: keys.serverPrivate,
-	}
-	serverConfig.DefaultListenPort()
-	serverConfig.AddPeer(keys.clientPublic, keys.shared, clientPublic)
-
-	server, closer := GetNet(t, serverConfig)
-	defer closer()
-
+	defer pair.Closer()
 	remoteAddrChan := make(chan net.IP)
-	errs := make(chan error)
 
 	rand8 := func() uint8 { return uint8(rand.Intn(math.MaxUint8) + 1) }
 	remoteAddr := net.IPv4(rand8(), rand8(), rand8(), 1)
-	remotePort := uint16(rand.Intn(math.MaxUint16) + 1)
-	go func() {
-		ln, err := client.Net(clientPublic).ListenTCP(remotePort)
-		if err != nil {
-			errs <- err
-			return
-		}
-		defer ln.Close()
+	remotePort := uint16(rand8() * rand8())
 
-		conn, err := ln.Accept()
+	ln, err := pair.Client.Listen(&net.TCPAddr{IP: pair.ClientIP, Port: int(remotePort)})
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+		return
+	}
+	defer ln.Close()
+	go func() {
+		defer close(remoteAddrChan)
+		c, err := ln.Accept()
 		if err != nil {
-			errs <- err
+			t.Log(err)
 			return
 		}
-		defer conn.Close()
-		remoteAddrChan <- conn.RemoteAddr().(*net.TCPAddr).IP
+		defer c.Close()
+		remoteAddrChan <- c.RemoteAddr().(*net.TCPAddr).IP
 	}()
 
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	stop := context.AfterFunc(ctx, func() { t.Log("dialer timeout") })
 
-		conn, err := server.Net(remoteAddr).DialTCP(ctx, &net.TCPAddr{IP: clientPublic, Port: int(remotePort)})
-		if err != nil {
-			errs <- err
-			return
-		}
-		defer conn.Close()
-	}()
+	c, err := pair.Server.Dialer(remoteAddr, 0).DialTCP(ctx, &net.TCPAddr{IP: pair.ClientIP, Port: int(remotePort)})
+	stop()
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+		return
+	}
+	c.Close()
 
-	tm := time.NewTimer(time.Second * 35)
+	tm := time.NewTimer(time.Second * 10)
 	defer tm.Stop()
 	select {
-	case err := <-errs:
-		t.Fatal(err)
-	case addr := <-remoteAddrChan:
-		if !remoteAddr.Equal(addr) {
-			t.Fatalf("remote is %s expected %s", addr, remoteAddr)
+	case addr, ok := <-remoteAddrChan:
+		if !(ok && remoteAddr.Equal(addr)) {
+			t.Logf("remote is %s expected %s", addr, remoteAddr)
+			t.Fail()
 		}
+		t.Logf("got remote ip %s", addr)
 	case <-tm.C:
-		t.Fatal("timeout")
+		t.Log("timeout")
+		t.Fail()
 	}
 }
 
-type keys struct {
-	clientPrivate wgapi.PrivateKey
-	clientPublic  wgapi.PublicKey
-	serverPrivate wgapi.PrivateKey
-	serverPublic  wgapi.PublicKey
-	shared        wgapi.PresharedKey
+type NetPair struct {
+	Client       *pointc.Net
+	ClientCloser func()
+	ClientIP     net.IP
+	Server       *pointc.Net
+	ServerCloser func()
+	t            testing.TB
+	Bindcloser   func()
 }
 
-func generateKeys(t *testing.T) *keys {
+func (np *NetPair) Closer() {
+	np.t.Helper()
+	defer np.Bindcloser()
+	defer np.ClientCloser()
+	defer np.ServerCloser()
+}
+
+func netPair(t testing.TB) *NetPair {
 	t.Helper()
-
-	var k keys
-
-	clientPrivate, clientPublic, err := wgapi.NewPrivatePublic()
+	pair := NetPair{t: t}
+	pair.ClientIP = net.IPv4(192, 168, 123, 2)
+	clientConfig, serverConfig, err := wgconfig.GenerateConfigPair(&net.UDPAddr{IP: net.IPv4(1, 1, 1, 1), Port: 1}, pair.ClientIP)
 	if err != nil {
-		t.Fatal(err)
+		t.Log(err)
+		t.Fail()
+		return nil
 	}
-	k.clientPrivate, k.clientPublic = clientPrivate, clientPublic
 
-	serverPrivate, serverPublic, err := wgapi.NewPrivatePublic()
-	if err != nil {
-		t.Fatal(err)
+	binds := bindtest.NewChannelBinds()
+	pair.Bindcloser = func() {
+		defer binds[0].Close()
+		defer binds[1].Close()
 	}
-	k.serverPrivate, k.serverPublic = serverPrivate, serverPublic
 
-	sharedKey, err := wgapi.NewPreshared()
-	if err != nil {
-		t.Fatal(err)
+	pair.Client, pair.ClientCloser = GetNet(t, binds[0], clientConfig)
+	pair.Server, pair.ServerCloser = GetNet(t, binds[1], serverConfig)
+	if pair.Client == nil || pair.Server == nil {
+		pair.Bindcloser()
+		if pair.Client != nil {
+			pair.ClientCloser()
+		}
+		if pair.Server != nil {
+			pair.ServerCloser()
+		}
+		return nil
 	}
-	k.shared = sharedKey
-
-	return &k
+	return &pair
 }
 
-func GetNet(t *testing.T, cfg wgapi.Configurable) (*device.Device, func()) {
+func GetNet(t testing.TB, bind conn.Bind, cfg wgapi.Configurable) (*pointc.Net, func()) {
 	t.Helper()
-	stack, err := device.NewDefault()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	logger := wg4d.NoopLogger()
+	logger := wglog.Noop()
 	if logWG {
-		logger.Errorf = func(format string, args ...any) {
+		logger = testLogger(t)
+	}
+
+	var n *pointc.Net
+	c, err := pointc.New(pointc.OptionNetDevice(&n), pointc.OptionBind(bind), pointc.OptionConfig(cfg), pointc.OptionLogger(logger))
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+		return nil, nil
+	}
+
+	return n, func() {
+		t.Helper()
+		if err := c.Close(); err != nil {
+			t.Log(err)
+			t.Fail()
+		}
+	}
+}
+
+func testLogger(t testing.TB) *device.Logger {
+	t.Helper()
+	return &device.Logger{
+		Verbosef: func(format string, args ...any) {
 			t.Helper()
 			t.Logf("ERROR: %s", fmt.Sprintf(format, args...))
-		}
-		logger.Verbosef = func(format string, args ...any) {
+		},
+		Errorf: func(format string, args ...any) {
 			t.Helper()
 			t.Logf("INFO:  %s", fmt.Sprintf(format, args...))
-		}
-	}
-
-	conn, err := wg4d.New(stack.Device(), wg4d.DefaultBind(), logger, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return stack, func() {
-		err := conn.Close()
-		err = errors.Join(err, stack.Close())
-		if err != nil {
-			t.Fatal(err)
-		}
+		},
 	}
 }

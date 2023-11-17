@@ -1,7 +1,7 @@
 package wgconfig
 
 import (
-	"github.com/trymoose/wg4d/wgapi"
+	"github.com/trymoose/point-c/wgapi"
 	"io"
 	"net"
 )

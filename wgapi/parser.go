@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/trymoose/wg4d/wgapi/internal/key"
-	"github.com/trymoose/wg4d/wgapi/internal/parser"
-	"github.com/trymoose/wg4d/wgapi/internal/value/wgkey"
+	"github.com/trymoose/point-c/wgapi/internal/key"
+	"github.com/trymoose/point-c/wgapi/internal/parser"
+	"github.com/trymoose/point-c/wgapi/internal/value/wgkey"
 )
 
 // IPCGet is used to help get information from a wireguard userspace configuration as documented in [wireguard cross-platform documentation].

@@ -51,7 +51,7 @@ func (e *EventAny) Slog(l *slog.Logger) {
     }
 }
 
-func Events(e chan<- Event) *device.Logger {
+func Events(fn func(Event)) *device.Logger {
     return &device.Logger{
         Verbosef: func(format string, args ...any) {
             {{ template "logfn.gotmpl" isError .Verbosef false }}

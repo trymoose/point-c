@@ -1,4 +1,4 @@
-package device
+package pointc
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	// WireguardHeaderSize is the size of a wireguard header. The MTU needed for the [Device] is <actual hardware MTU> - [WireguardHeaderSize].
+	// WireguardHeaderSize is the size of a wireguard header. The MTU needed for the [Netstack] is <actual hardware MTU> - [WireguardHeaderSize].
 	WireguardHeaderSize = 80
 	// DefaultMTU is the default MTU as specified from wireguard-go
 	DefaultMTU = device.DefaultMTU
@@ -34,10 +34,10 @@ const (
 	DefaultChannelSize = 8 * DefaultBatchSize
 )
 
-var _ tun.Device = (*Device)(nil)
+var _ Device = (*Netstack)(nil)
 
-// Device is a wireguard device that takes the raw packets communicated through wireguard and turns them into meaningful TCP/UDP connections.
-type Device struct {
+// Netstack is a wireguard device that takes the raw packets communicated through wireguard and turns them into meaningful TCP/UDP connections.
+type Netstack struct {
 	ep         *channel.Endpoint
 	stack      *stack.Stack
 	events     chan tun.Event
@@ -50,27 +50,30 @@ type Device struct {
 	mtu        int
 }
 
+type Device = tun.Device
+
 // NewDefaultNetstack calls NewNetstack with the default values.
-func NewDefaultNetstack() (*Device, error) {
+func NewDefaultNetstack() (*Netstack, error) {
 	return NewNetstack(DefaultMTU, DefaultBatchSize, DefaultChannelSize)
 }
 
 // NewNetstack creates a new wireguard network stack.
-func NewNetstack(mtu int, batchSize int, channelSize int) (*Device, error) {
-	d := &Device{
+func NewNetstack(mtu int, batchSize int, channelSize int) (*Netstack, error) {
+	d := &Netstack{
 		mtu: mtu,
-		ep:  channel.New(channelSize, uint32(mtu), ""),
+		// Packet ingress/egress
+		ep: channel.New(channelSize, uint32(mtu), ""),
 		stack: stack.New(stack.Options{
 			NetworkProtocols: []stack.NetworkProtocolFactory{
 				ipv4.NewProtocol,
 				ipv6.NewProtocol,
-				arp.NewProtocol},
+				arp.NewProtocol}, // TODO: is this needed?
 			TransportProtocols: []stack.TransportProtocolFactory{
 				tcp.NewProtocol,
 				udp.NewProtocol,
 				icmp.NewProtocol4,
 				icmp.NewProtocol6},
-			HandleLocal: false,
+			HandleLocal: false, // TODO: is this needed?
 		}),
 		events:    make(chan tun.Event, 1),
 		batchSize: batchSize,
@@ -79,18 +82,23 @@ func NewNetstack(mtu int, batchSize int, channelSize int) (*Device, error) {
 	}
 	d.ep.AddNotify((*writeNotify)(d))
 
+	// Wireguard-go does this
 	var enableSACK tcpip.TCPSACKEnabled = true
 	if err := d.stack.SetTransportProtocolOption(tcp.ProtocolNumber, &enableSACK); err != nil {
 		return nil, &TCPIPError{Err: err}
 	}
 
+	// Add the endpoint to the stack
 	d.defaultNIC = tcpip.NICID(d.stack.UniqueID())
 	if err := d.stack.CreateNICWithOptions(d.defaultNIC, d.ep, stack.NICOptions{Name: ""}); err != nil {
 		return nil, &TCPIPError{Err: err}
 	}
 
+	// Important! This allows us to dial/listen on whatever address we want!
 	d.stack.SetSpoofing(d.defaultNIC, true)
 	d.stack.SetPromiscuousMode(d.defaultNIC, true)
+
+	// Route all packets out of stack
 	d.stack.AddRoute(tcpip.Route{Destination: header.IPv4EmptySubnet, NIC: d.defaultNIC})
 	d.stack.AddRoute(tcpip.Route{Destination: header.IPv6EmptySubnet, NIC: d.defaultNIC})
 
@@ -99,7 +107,7 @@ func NewNetstack(mtu int, batchSize int, channelSize int) (*Device, error) {
 }
 
 // Close closes the network stack rendering it unusable in the future.
-func (d *Device) Close() error {
+func (d *Netstack) Close() error {
 	d.close.Do(func() {
 		close(d.done)
 		go func() { d.events <- tun.EventDown }()
@@ -111,7 +119,7 @@ func (d *Device) Close() error {
 
 var _ channel.Notification = (*writeNotify)(nil)
 
-type writeNotify Device
+type writeNotify Netstack
 
 func (w *writeNotify) WriteNotify() {
 	pkt := w.ep.Read()
@@ -128,22 +136,22 @@ func (w *writeNotify) WriteNotify() {
 }
 
 // File implements [tun.Device.File] and always returns nil
-func (d *Device) File() *os.File { return nil }
+func (d *Netstack) File() *os.File { return nil }
 
 // Name implements [tun.Device.Name] and always returns "point-c"
-func (d *Device) Name() (string, error) { return "point-c", nil }
+func (d *Netstack) Name() (string, error) { return "point-c", nil }
 
 // MTU implements [tun.Device.MTU] and returns the configured MTU
-func (d *Device) MTU() (int, error) { return d.mtu, nil }
+func (d *Netstack) MTU() (int, error) { return d.mtu, nil }
 
 // Events implements [tun.Device.Events]
-func (d *Device) Events() <-chan tun.Event { return d.events }
+func (d *Netstack) Events() <-chan tun.Event { return d.events }
 
 // BatchSize implements [tun.Device.BatchSize] and returns the configured BatchSize
-func (d *Device) BatchSize() int { return d.batchSize }
+func (d *Netstack) BatchSize() int { return d.batchSize }
 
 // Read will always read exactly one packet at a time.
-func (d *Device) Read(buf [][]byte, sizes []int, offset int) (n int, err error) {
+func (d *Netstack) Read(buf [][]byte, sizes []int, offset int) (n int, err error) {
 	select {
 	case <-d.done:
 		return 0, os.ErrClosed
@@ -154,7 +162,7 @@ func (d *Device) Read(buf [][]byte, sizes []int, offset int) (n int, err error) 
 }
 
 // Write will write all packets given to it to the underlaying netstack.
-func (d *Device) Write(buf [][]byte, offset int) (int, error) {
+func (d *Netstack) Write(buf [][]byte, offset int) (int, error) {
 	for _, buf := range buf {
 		buf = buf[offset:]
 		if len(buf) == 0 {
@@ -178,7 +186,7 @@ type TCPIPError struct{ Err tcpip.Error }
 func (err *TCPIPError) Error() string { return err.Err.String() }
 
 // Net handles the application level dialing/listening.
-type Net Device
+type Net Netstack
 
 var _ interface {
 	Listen(*net.TCPAddr) (net.Listener, error)
@@ -198,7 +206,7 @@ type Dialer struct {
 }
 
 // Net allows using the device similar to the [net] package.
-func (d *Device) Net() *Net { return (*Net)(d) }
+func (d *Netstack) Net() *Net { return (*Net)(d) }
 
 // Listen listens with the TCP protocol on the given address.
 func (n *Net) Listen(addr *net.TCPAddr) (net.Listener, error) {

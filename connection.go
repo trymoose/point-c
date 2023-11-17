@@ -1,59 +1,62 @@
-// Package wg4d helps with the creation and usage of userland wireguard networks.
-package wg4d
+// Package pointc helps with the creation and usage of userland wireguard networks.
+package pointc
 
 import (
-	"fmt"
-	"github.com/trymoose/wg4d/wgapi"
-	"golang.zx2c4.com/wireguard/conn"
+	"errors"
+	"github.com/trymoose/point-c/wgapi"
+	"github.com/trymoose/point-c/wglog"
 	"golang.zx2c4.com/wireguard/device"
-	"golang.zx2c4.com/wireguard/tun"
-	"log/slog"
-	"sync"
+	"sync/atomic"
 )
 
 // Wireguard handles configuring and closing a wireguard client/server.
 type Wireguard struct {
-	dev   *device.Device
-	close sync.Once
-}
-
-// SlogLogger allows the created of a [device.Logger] backed by a given [slog.Logger].
-func SlogLogger(logger *slog.Logger) *device.Logger {
-	if logger == nil {
-		logger = slog.Default()
-	}
-	return &device.Logger{
-		Verbosef: func(format string, args ...any) { logger.Debug(fmt.Sprintf(format, args...)) },
-		Errorf:   func(format string, args ...any) { logger.Error(fmt.Sprintf(format, args...)) },
-	}
-}
-
-// NoopLogger is a logger that does not output anything.
-func NoopLogger() *device.Logger {
-	return &device.Logger{
-		Verbosef: func(string, ...any) {},
-		Errorf:   func(string, ...any) {},
-	}
-}
-
-// DefaultBind is the default wireguard UDP listener..
-func DefaultBind() conn.Bind {
-	return conn.NewDefaultBind()
+	dev     *device.Device
+	close   atomic.Pointer[error]
+	closers []func() error
 }
 
 // New allows the creating of a new wireguard server/client.
-func New(tun tun.Device, bind conn.Bind, logger *device.Logger, cfg wgapi.Configurable) (*Wireguard, error) {
-	c := &Wireguard{dev: device.NewDevice(tun, bind, logger)}
-
-	if err := c.dev.IpcSetOperation(cfg.WGConfig()); err != nil {
-		c.dev.Close()
+func New(opts ...option) (_ *Wireguard, err error) {
+	var o options
+	if err = o.apply(opts); err != nil {
 		return nil, err
+	}
+
+	failed := true
+	defer func() {
+		if failed {
+			for _, c := range o.closer {
+				err = errors.Join(err, c())
+			}
+		}
+	}()
+
+	if o.tun == nil {
+		return nil, errors.New("no device specified")
+	}
+
+	if o.bind == nil {
+		o.bind = DefaultBind()
+		o.closer = append(o.closer, o.bind.Close)
+	}
+
+	c := &Wireguard{dev: device.NewDevice(o.tun, o.bind, wglog.Multi(o.loggers...))}
+	defer func() { c.closers = o.closer }()
+	o.closer = append(o.closer, func() error { c.dev.Close(); return nil })
+
+	if o.cfg != nil {
+		if err := c.SetConfig(*o.cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := c.dev.Up(); err != nil {
-		c.dev.Close()
 		return nil, err
 	}
+	o.closer = append(o.closer, c.dev.Down)
+
+	failed = false
 	return c, nil
 }
 
@@ -66,11 +69,17 @@ func (c *Wireguard) GetConfig() (wgapi.IPC, error) {
 	return ipc.Value()
 }
 
+func (c *Wireguard) SetConfig(cfg wgapi.Configurable) error {
+	return c.dev.IpcSetOperation(cfg.WGConfig())
+}
+
 // Close closes the wireguard server/client, rendering it unusable in the future.
 func (c *Wireguard) Close() (err error) {
-	c.close.Do(func() {
-		err = c.dev.Down()
-		c.dev.Close()
-	})
-	return
+	if c.close.CompareAndSwap(nil, &err) {
+		for i := len(c.closers) - 1; i >= 0; i-- {
+			err = errors.Join(err, c.closers[i]())
+		}
+		c.closers = nil
+	}
+	return *c.close.Load()
 }
