@@ -1,4 +1,3 @@
-// Package device is a device that can dial or listen on any address in a wireguard tunnel.
 package device
 
 import (
@@ -35,7 +34,9 @@ const (
 	DefaultChannelSize = 8 * DefaultBatchSize
 )
 
-// Device is a wireguard device that creates a bridge that takes the raw packets communicated through wireguard and turns them into a meaningful TCP/UDP connections.
+var _ tun.Device = (*Device)(nil)
+
+// Device is a wireguard device that takes the raw packets communicated through wireguard and turns them into meaningful TCP/UDP connections.
 type Device struct {
 	ep         *channel.Endpoint
 	stack      *stack.Stack
@@ -49,14 +50,14 @@ type Device struct {
 	mtu        int
 }
 
-// NewDefault calls New with the default values.
-func NewDefault() (*Device, error) {
-	return New(DefaultMTU, DefaultBatchSize, DefaultChannelSize)
+// NewDefaultNetstack calls NewNetstack with the default values.
+func NewDefaultNetstack() (*Device, error) {
+	return NewNetstack(DefaultMTU, DefaultBatchSize, DefaultChannelSize)
 }
 
-// New creates a new wireguard network stack.
-func New(mtu int, batchSize int, channelSize int) (*Device, error) {
-	ns := &Device{
+// NewNetstack creates a new wireguard network stack.
+func NewNetstack(mtu int, batchSize int, channelSize int) (*Device, error) {
+	d := &Device{
 		mtu: mtu,
 		ep:  channel.New(channelSize, uint32(mtu), ""),
 		stack: stack.New(stack.Options{
@@ -76,39 +77,36 @@ func New(mtu int, batchSize int, channelSize int) (*Device, error) {
 		done:      make(chan struct{}),
 		read:      make(chan []byte),
 	}
-	ns.ep.AddNotify((*writeNotify)(ns))
+	d.ep.AddNotify((*writeNotify)(d))
 
 	var enableSACK tcpip.TCPSACKEnabled = true
-	if err := ns.stack.SetTransportProtocolOption(tcp.ProtocolNumber, &enableSACK); err != nil {
+	if err := d.stack.SetTransportProtocolOption(tcp.ProtocolNumber, &enableSACK); err != nil {
 		return nil, &TCPIPError{Err: err}
 	}
 
-	ns.defaultNIC = tcpip.NICID(ns.stack.UniqueID())
-	if err := ns.stack.CreateNICWithOptions(ns.defaultNIC, ns.ep, stack.NICOptions{Name: ""}); err != nil {
+	d.defaultNIC = tcpip.NICID(d.stack.UniqueID())
+	if err := d.stack.CreateNICWithOptions(d.defaultNIC, d.ep, stack.NICOptions{Name: ""}); err != nil {
 		return nil, &TCPIPError{Err: err}
 	}
 
-	ns.stack.SetSpoofing(ns.defaultNIC, true)
-	ns.stack.SetPromiscuousMode(ns.defaultNIC, true)
-	ns.stack.AddRoute(tcpip.Route{Destination: header.IPv4EmptySubnet, NIC: ns.defaultNIC})
-	ns.stack.AddRoute(tcpip.Route{Destination: header.IPv6EmptySubnet, NIC: ns.defaultNIC})
+	d.stack.SetSpoofing(d.defaultNIC, true)
+	d.stack.SetPromiscuousMode(d.defaultNIC, true)
+	d.stack.AddRoute(tcpip.Route{Destination: header.IPv4EmptySubnet, NIC: d.defaultNIC})
+	d.stack.AddRoute(tcpip.Route{Destination: header.IPv6EmptySubnet, NIC: d.defaultNIC})
 
-	ns.events <- tun.EventUp
-	return ns, nil
+	d.events <- tun.EventUp
+	return d, nil
 }
 
-// Device exposes the wireguard device to be used when initializing the wireguard interface.
-func (ns *Device) Device() tun.Device { return (*dev)(ns) }
-
 // Close closes the network stack rendering it unusable in the future.
-func (ns *Device) Close() error {
-	ns.close.Do(func() {
-		close(ns.done)
-		go func() { ns.events <- tun.EventDown }()
-		ns.ep.Close()
-		ns.ep.Wait()
+func (d *Device) Close() error {
+	d.close.Do(func() {
+		close(d.done)
+		go func() { d.events <- tun.EventDown }()
+		d.ep.Close()
+		d.ep.Wait()
 	})
-	return ns.closeErr
+	return d.closeErr
 }
 
 var _ channel.Notification = (*writeNotify)(nil)
@@ -129,19 +127,23 @@ func (w *writeNotify) WriteNotify() {
 	}
 }
 
-var _ tun.Device = (*dev)(nil)
+// File implements [tun.Device.File] and always returns nil
+func (d *Device) File() *os.File { return nil }
 
-type dev Device
+// Name implements [tun.Device.Name] and always returns "point-c"
+func (d *Device) Name() (string, error) { return "point-c", nil }
 
-func (d *dev) File() *os.File           { return nil }
-func (d *dev) Name() (string, error)    { return "netstack", nil }
-func (d *dev) MTU() (int, error)        { return d.mtu, nil }
-func (d *dev) Events() <-chan tun.Event { return d.events }
-func (d *dev) BatchSize() int           { return d.batchSize }
-func (d *dev) Close() error             { return ((*Device)(d)).Close() }
+// MTU implements [tun.Device.MTU] and returns the configured MTU
+func (d *Device) MTU() (int, error) { return d.mtu, nil }
+
+// Events implements [tun.Device.Events]
+func (d *Device) Events() <-chan tun.Event { return d.events }
+
+// BatchSize implements [tun.Device.BatchSize] and returns the configured BatchSize
+func (d *Device) BatchSize() int { return d.batchSize }
 
 // Read will always read exactly one packet at a time.
-func (d *dev) Read(buf [][]byte, sizes []int, offset int) (n int, err error) {
+func (d *Device) Read(buf [][]byte, sizes []int, offset int) (n int, err error) {
 	select {
 	case <-d.done:
 		return 0, os.ErrClosed
@@ -152,7 +154,7 @@ func (d *dev) Read(buf [][]byte, sizes []int, offset int) (n int, err error) {
 }
 
 // Write will write all packets given to it to the underlaying netstack.
-func (d *dev) Write(buf [][]byte, offset int) (int, error) {
+func (d *Device) Write(buf [][]byte, offset int) (int, error) {
 	for _, buf := range buf {
 		buf = buf[offset:]
 		if len(buf) == 0 {
@@ -176,46 +178,71 @@ type TCPIPError struct{ Err tcpip.Error }
 func (err *TCPIPError) Error() string { return err.Err.String() }
 
 // Net handles the application level dialing/listening.
-type Net struct {
-	stack *stack.Stack
-	local tcpip.FullAddress
-	nic   tcpip.NICID
+type Net Device
+
+var _ interface {
+	Listen(*net.TCPAddr) (net.Listener, error)
+	ListenPacket(*net.UDPAddr) (net.PacketConn, error)
+	Dialer(net.IP, uint16) *Dialer
+} = (*Net)(nil)
+
+var _ interface {
+	DialTCP(context.Context, *net.TCPAddr) (net.Conn, error)
+	DialUDP(*net.UDPAddr) (net.PacketConn, error)
+} = (*Dialer)(nil)
+
+// Dialer handles dialing with a given local address
+type Dialer struct {
+	net   *Net
+	laddr tcpip.FullAddress
 }
 
-// Net creates a [Net] with the given local IP. The local IP is the address listened on when calling [Net.ListenTCP]. It will also be the source IP for [Net.DialTCP] and [Net.DialUDP].
-func (ns *Device) Net(local net.IP) *Net {
-	return &Net{
-		stack: ns.stack,
-		local: tcpip.FullAddress{
-			NIC:  ns.defaultNIC,
-			Addr: tcpip.AddrFromSlice(local.To4()),
-		},
-		nic: ns.defaultNIC,
-	}
-}
+// Net allows using the device similar to the [net] package.
+func (d *Device) Net() *Net { return (*Net)(d) }
 
-// ListenTCP listens on the given port for this address.
-func (n *Net) ListenTCP(port uint16) (net.Listener, error) {
+// Listen listens with the TCP protocol on the given address.
+func (n *Net) Listen(addr *net.TCPAddr) (net.Listener, error) {
 	return gonet.ListenTCP(n.stack, tcpip.FullAddress{
-		NIC:  n.local.NIC,
-		Addr: n.local.Addr,
-		Port: port,
+		NIC:  n.defaultNIC,
+		Addr: tcpip.AddrFromSlice(addr.IP),
+		Port: uint16(addr.Port),
 	}, ipv4.ProtocolNumber)
 }
 
+// ListenPacket listens with the UDP protocol on the given address
+func (n *Net) ListenPacket(addr *net.UDPAddr) (net.PacketConn, error) {
+	return gonet.DialUDP(n.stack, &tcpip.FullAddress{
+		NIC:  n.defaultNIC,
+		Addr: tcpip.AddrFromSlice(addr.IP),
+		Port: uint16(addr.Port),
+	}, nil, ipv4.ProtocolNumber)
+}
+
+// Dialer creates a new dialer with a specified local address.
+func (n *Net) Dialer(laddr net.IP, port uint16) *Dialer {
+	return &Dialer{
+		net: n,
+		laddr: tcpip.FullAddress{
+			NIC:  n.defaultNIC,
+			Addr: tcpip.AddrFromSlice(laddr),
+			Port: port,
+		},
+	}
+}
+
 // DialTCP initiates a TCP connection with a remote TCP listener.
-func (n *Net) DialTCP(ctx context.Context, addr *net.TCPAddr) (net.Conn, error) {
-	return gonet.DialTCPWithBind(ctx, n.stack, n.local, tcpip.FullAddress{
-		NIC:  n.nic,
+func (d *Dialer) DialTCP(ctx context.Context, addr *net.TCPAddr) (net.Conn, error) {
+	return gonet.DialTCPWithBind(ctx, d.net.stack, d.laddr, tcpip.FullAddress{
+		NIC:  d.net.defaultNIC,
 		Addr: tcpip.AddrFromSlice(addr.IP.To4()),
 		Port: uint16(addr.Port),
 	}, ipv4.ProtocolNumber)
 }
 
 // DialUDP dials a UDP network.
-func (n *Net) DialUDP(addr *net.UDPAddr) (net.PacketConn, error) {
-	return gonet.DialUDP(n.stack, &n.local, &tcpip.FullAddress{
-		NIC:  n.nic,
+func (d *Dialer) DialUDP(addr *net.UDPAddr) (net.PacketConn, error) {
+	return gonet.DialUDP(d.net.stack, &d.laddr, &tcpip.FullAddress{
+		NIC:  d.net.defaultNIC,
 		Addr: tcpip.AddrFromSlice(addr.IP.To4()),
 		Port: uint16(addr.Port),
 	}, ipv4.ProtocolNumber)

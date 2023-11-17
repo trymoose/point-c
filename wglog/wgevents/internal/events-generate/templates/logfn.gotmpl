@@ -1,0 +1,22 @@
+{{- $isError := .IsError -}}
+{{- define "rtnAny" }}e <- &EventAny{format: format, args: args, error: {{ . }}}
+return{{ end -}}
+
+switch format {
+{{ range .Events }}{{- /*gotype:github.com/trymoose/point-c/wglog/wgevents/internal/events-generate.Event*/ -}}
+case "{{ .Format }}":{{ if .Custom }}
+var ev Event{{ .Name }}
+if !parser.Parse{{ .Name }}(&ev, format, args...) {
+    {{ template "rtnAny" $isError }}
+}{{ else }}{{- $argsLen := len .Args -}}
+if len(args) != {{ $argsLen }} {
+        {{ template "rtnAny" $isError }}
+    }{{ range $i, $e := .Args }}
+v{{ $i }}, ok := args[{{ $i }}].({{ $e.Type }})
+if !ok {
+{{ template "rtnAny" $isError }}
+}{{ end }}
+e <- &Event{{ .Name }}{ {{ range $i, $e := .Args }} {{ $e.Name }}: v{{ $i }}, {{ end }} } {{ end }}
+    {{ end }}default:
+	{{ template "rtnAny" $isError }}
+}

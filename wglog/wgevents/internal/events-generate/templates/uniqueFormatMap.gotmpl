@@ -1,0 +1,4 @@
+var _ = map[string]struct{}{
+{{ range . }}{{- /*gotype:github.com/trymoose/point-c/wglog/wgevents/internal/events-generate.Event*/ -}}"{{ .Format }}": {},
+{{ end -}}
+}
