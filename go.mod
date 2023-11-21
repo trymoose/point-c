@@ -1,10 +1,9 @@
-module github.com/trymoose/point-c/wgcaddy
+module github.com/trymoose/point-c
 
 go 1.21.3
 
 require (
 	github.com/caddyserver/caddy/v2 v2.7.5
-	github.com/trymoose/point-c v0.0.3
 	github.com/trymoose/point-c/wglog/wgevents v0.0.1
 	go.mrchanchal.com/zaphandler v0.0.0-20230611140024-bd4fd80897ad
 )
