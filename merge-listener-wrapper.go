@@ -1,9 +1,8 @@
-package wgcaddy
+package point_c
 
 import (
 	"encoding/json"
 	"errors"
-	"github.com/caddyserver/caddy/v2"
 	"log/slog"
 	"net"
 )

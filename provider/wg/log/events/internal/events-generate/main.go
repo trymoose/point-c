@@ -35,7 +35,7 @@ var extraImports = []string{
 func init() {
 	if os.Getenv("GOPACKAGE") == "" {
 		os.Setenv("GOPACKAGE", "wgevents")
-		outputFilename = filepath.Join("wg", "log", "wgevents", "events"+outputFilename)
+		outputFilename = filepath.Join("provider", "wg", "log", "events", "events"+outputFilename)
 	}
 }
 

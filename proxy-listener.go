@@ -1,8 +1,7 @@
-package wgcaddy
+package point_c
 
 import (
 	"fmt"
-	"github.com/caddyserver/caddy/v2"
 	"net"
 )
 

@@ -1,12 +1,11 @@
-package wgcaddy
+package point_c
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/caddyserver/caddy/v2"
-	"github.com/trymoose/point-c/wgapi"
-	"github.com/trymoose/point-c/wgcaddy/internal/configvalues"
+	"github.com/trymoose/point-c/provider/wg/caddy"
+	"github.com/trymoose/point-c/wgcaddy/pkg/configvalues"
 	"net"
 )
 
@@ -55,19 +54,12 @@ type (
 	//PortPair = configvalues.CaddyTextUnmarshaler[[2]uint16, configvalues.PortPair, *configvalues.PortPair]
 
 	// UDPAddr is a wrapper for the [net.UDPAddr] type.
-	UDPAddr = configvalues.CaddyTextUnmarshaler[*net.UDPAddr, configvalues.UDPAddr, *configvalues.UDPAddr]
+	UDPAddr = configvalues.CaddyTextUnmarshaler[*net.UDPAddr, UDPAddr, *UDPAddr]
 	// IP is wrapper for the [net.IP] type.
-	IP = configvalues.CaddyTextUnmarshaler[net.IP, configvalues.IP, *configvalues.IP]
+	IP = configvalues.CaddyTextUnmarshaler[net.IP, IP, *IP]
 
 	// Hostname is a unique hostname.
 	Hostname = configvalues.CaddyTextUnmarshaler[string, configvalues.String, *configvalues.String]
-
-	// PrivateKey is a wireguard private key in base64 format.
-	PrivateKey = configvalues.CaddyTextUnmarshaler[wgapi.PrivateKey, configvalues.WGKey[wgapi.PrivateKey], *configvalues.WGKey[wgapi.PrivateKey]]
-	// PublicKey is a wireguard public key in base64 format.
-	PublicKey = configvalues.CaddyTextUnmarshaler[wgapi.PublicKey, configvalues.WGKey[wgapi.PublicKey], *configvalues.WGKey[wgapi.PublicKey]]
-	// PresharedKey is a wireguard preshared key in base64 format.
-	PresharedKey = configvalues.CaddyTextUnmarshaler[wgapi.PresharedKey, configvalues.WGKey[wgapi.PresharedKey], *configvalues.WGKey[wgapi.PresharedKey]]
 )
 
 func (*Proxy) CaddyModule() caddy.ModuleInfo {

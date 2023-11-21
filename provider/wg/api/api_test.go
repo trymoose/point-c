@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"errors"
-	wgapi "github.com/trymoose/point-c/wg/api"
+	"github.com/trymoose/point-c/wg/api"
 	"github.com/trymoose/point-c/wg/api/internal/parser"
 	"io"
 	"net"

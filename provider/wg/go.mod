@@ -1,4 +1,4 @@
-module github.com/trymoose/point-c/wg
+module github.com/trymoose/point-c/provider/wg
 
 go 1.21.1
 

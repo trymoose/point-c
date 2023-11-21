@@ -1,6 +1,4 @@
-package wgcaddy
-
-import "github.com/caddyserver/caddy/v2"
+package point_c
 
 var (
 	_ caddy.Provisioner  = (*ProxyForward)(nil)

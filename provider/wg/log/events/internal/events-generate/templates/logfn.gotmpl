@@ -3,7 +3,7 @@
 return{{ end -}}
 
 switch format {
-{{ range .Events }}{{- /*gotype:github.com/trymoose/point-c/wg/log/wgevents/internal/events-generate.Event*/ -}}
+{{ range .Events }}{{- /*gotype:github.com/trymoose/point-c/wg/log/events/internal/events-generate.Event*/ -}}
 case "{{ .Format }}":{{ if not .Custom }}
 {{- $argsLen := len .Args -}}
 if len(args) != {{ $argsLen }} {
