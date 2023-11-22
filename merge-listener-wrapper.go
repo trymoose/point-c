@@ -3,6 +3,9 @@ package point_c
 import (
 	"encoding/json"
 	"errors"
+	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
+	"github.com/trymoose/point-c/pkg/channel-listener"
 	"log/slog"
 	"net"
 )
@@ -12,6 +15,7 @@ var (
 	_ caddy.CleanerUpper    = (*MultiWrapper)(nil)
 	_ caddy.ListenerWrapper = (*MultiWrapper)(nil)
 	_ caddy.Module          = (*MultiWrapper)(nil)
+	_ caddyfile.Unmarshaler = (*MultiWrapper)(nil)
 )
 
 // MultiWrapper wraps the base connection with multiple wrappers. The returned wrapper produces connections from all [net.Listener]s given.
@@ -59,7 +63,7 @@ func (p *MultiWrapper) Cleanup() (err error) {
 
 func (p *MultiWrapper) WrapListener(ls net.Listener) net.Listener {
 	p.listeners = append(p.listeners, ls)
-	cl := NewChannelListener(p.conns, ls.Addr())
+	cl := channel_listener.New(p.conns, ls.Addr())
 	for _, ls := range p.listeners {
 		p.listen(ls, cl.Done(), cl.CloseWithErr)
 	}
@@ -83,4 +87,27 @@ func (p *MultiWrapper) listen(ls net.Listener, done <-chan struct{}, finish func
 			}
 		}
 	}()
+}
+
+func (p *MultiWrapper) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+	for d.Next() {
+		for nesting := d.Nesting(); d.NextBlock(nesting); {
+			modName := d.Val()
+			if modName == "" {
+				continue
+			}
+
+			v, err := caddyfile.UnmarshalModule(d, "caddy.listeners.merge.listeners."+modName)
+			if err != nil {
+				return err
+			}
+
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return err
+			}
+			p.ListenerRaw = append(p.ListenerRaw, raw)
+		}
+	}
+	return nil
 }

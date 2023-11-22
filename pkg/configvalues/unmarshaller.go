@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"github.com/caddyserver/caddy/v2"
+	"github.com/tidwall/gjson"
 	"golang.org/x/exp/constraints"
 	"net"
 	"strconv"
@@ -17,17 +19,31 @@ type (
 		encoding.TextUnmarshaler
 		Value() V
 	}
-	valuePtr[V, T any] interface {
+	valueConstraint[V, T any] interface {
 		*T
 		Value[V]
 	}
-	CaddyTextUnmarshaler[V, T any, TP valuePtr[V, T]] struct {
+	CaddyTextUnmarshaler[V, T any, TP valueConstraint[V, T]] struct {
 		value    T
 		original string
 	}
 )
 
-func NewCaddyTextUnmarshaler[V, T any, TP valuePtr[V, T]](text string) (*CaddyTextUnmarshaler[V, T, TP], error) {
+type (
+	// Port is a value in the uint16 range. 0 may or may nor be valid depending on the context.
+	Port = CaddyTextUnmarshaler[uint16, valueUnsigned[uint16], *valueUnsigned[uint16]]
+	//PortPair = configvalues.CaddyTextUnmarshaler[[2]uint16, configvalues.PortPair, *configvalues.PortPair]
+
+	// UDPAddr is a wrapper for the [net.UDPAddr] type.
+	UDPAddr = CaddyTextUnmarshaler[*net.UDPAddr, valueUDPAddr, *valueUDPAddr]
+	// IP is wrapper for the [net.IP] type.
+	IP = CaddyTextUnmarshaler[net.IP, valueIP, *valueIP]
+
+	// Hostname is a unique hostname.
+	Hostname = CaddyTextUnmarshaler[string, valueString, *valueString]
+)
+
+func NewCaddyTextUnmarshaler[V, T any, TP valueConstraint[V, T]](text string) (*CaddyTextUnmarshaler[V, T, TP], error) {
 	var c CaddyTextUnmarshaler[V, T, TP]
 	if err := c.UnmarshalText([]byte(text)); err != nil {
 		return nil, err
@@ -39,32 +55,47 @@ func (c CaddyTextUnmarshaler[V, T, TP]) MarshalText() (text []byte, err error) {
 	return []byte(c.original), nil
 }
 
-var replacer = sync.OnceValue(caddy.NewReplacer)
+var caddyReplacer = sync.OnceValue(caddy.NewReplacer)
 
 func (c *CaddyTextUnmarshaler[V, T, TP]) UnmarshalText(text []byte) error {
 	c.original = string(text)
-	text = []byte(replacer().ReplaceAll(c.original, ""))
+	text = []byte(caddyReplacer().ReplaceAll(c.original, ""))
 	return any(&c.value).(encoding.TextUnmarshaler).UnmarshalText(text)
+}
+
+func (c *CaddyTextUnmarshaler[V, T, TP]) MarshalJSON() (text []byte, err error) {
+	text, err = c.MarshalText()
+	if !gjson.ValidBytes(text) {
+		text = []byte(strconv.Quote(string(text)))
+	}
+	return
+}
+
+func (c *CaddyTextUnmarshaler[V, T, TP]) UnmarshalJSON(text []byte) error {
+	if s := ""; json.Unmarshal(text, &s) == nil {
+		text = []byte(s)
+	}
+	return c.UnmarshalText(text)
 }
 
 func (c *CaddyTextUnmarshaler[V, T, TP]) Value() V {
 	return any(&c.value).(Value[V]).Value()
 }
 
-type String string
+type valueString string
 
-func (s *String) UnmarshalText(b []byte) error {
-	*s = String(b)
+func (s *valueString) UnmarshalText(b []byte) error {
+	*s = valueString(b)
 	return nil
 }
 
-func (s *String) Value() string {
+func (s *valueString) Value() string {
 	return string(*s)
 }
 
-type Unsigned[N constraints.Unsigned] struct{ V N }
+type valueUnsigned[N constraints.Unsigned] struct{ V N }
 
-func (n *Unsigned[N]) UnmarshalText(b []byte) error {
+func (n *valueUnsigned[N]) UnmarshalText(b []byte) error {
 	i, err := strconv.ParseUint(string(b), 10, binary.Size(n.V)*8)
 	if err != nil {
 		return err
@@ -73,38 +104,38 @@ func (n *Unsigned[N]) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (n *Unsigned[N]) Value() N {
+func (n *valueUnsigned[N]) Value() N {
 	return n.V
 }
 
-type UDPAddr net.UDPAddr
+type valueUDPAddr net.UDPAddr
 
-func (addr *UDPAddr) UnmarshalText(text []byte) error {
+func (addr *valueUDPAddr) UnmarshalText(text []byte) error {
 	a, err := net.ResolveUDPAddr("udp", string(text))
 	if err != nil {
 		return err
 	}
-	*addr = (UDPAddr)(*a)
+	*addr = (valueUDPAddr)(*a)
 	return nil
 }
 
-func (addr *UDPAddr) Value() *net.UDPAddr {
+func (addr *valueUDPAddr) Value() *net.UDPAddr {
 	return (*net.UDPAddr)(addr)
 }
 
-type IP net.IP
+type valueIP net.IP
 
-func (ip *IP) UnmarshalText(text []byte) error {
+func (ip *valueIP) UnmarshalText(text []byte) error {
 	return ((*net.IP)(ip)).UnmarshalText(text)
 }
 
-func (ip *IP) Value() net.IP {
+func (ip *valueIP) Value() net.IP {
 	return net.IP(*ip)
 }
 
-type PortPair [2]Unsigned[uint16]
+type valuePortPair [2]valueUnsigned[uint16]
 
-func (pp *PortPair) UnmarshalText(b []byte) error {
+func (pp *valuePortPair) UnmarshalText(b []byte) error {
 	src, dst, ok := bytes.Cut(b, []byte{':'})
 	if !ok {
 		return errors.New("not a port:port pair")
@@ -115,4 +146,4 @@ func (pp *PortPair) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (pp PortPair) Value() [2]uint16 { return [2]uint16{pp[0].Value(), pp[1].Value()} }
+func (pp valuePortPair) Value() [2]uint16 { return [2]uint16{pp[0].Value(), pp[1].Value()} }
