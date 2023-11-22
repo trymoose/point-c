@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"github.com/caddyserver/caddy/v2"
 	pointc "github.com/trymoose/point-c"
-	"github.com/trymoose/point-c/wgapi/wgconfig"
-	"github.com/trymoose/point-c/wgcaddy"
+	"github.com/trymoose/point-c/pkg/configvalues"
+	"github.com/trymoose/point-c/pkg/wg"
+	"github.com/trymoose/point-c/pkg/wg/wgapi/wgconfig"
 	"github.com/trymoose/point-c/wglog/wgevents"
 	"go.mrchanchal.com/zaphandler"
 	"log/slog"
@@ -17,7 +18,7 @@ var (
 	_ caddy.Module       = (*Client)(nil)
 	_ caddy.Provisioner  = (*Client)(nil)
 	_ caddy.CleanerUpper = (*Client)(nil)
-	_ wgcaddy.Network    = (*Client)(nil)
+	_ pointc.Network     = (*Client)(nil)
 	_ json.Marshaler     = (*Client)(nil)
 	_ json.Unmarshaler   = (*Client)(nil)
 )
@@ -36,30 +37,30 @@ func (*Client) CaddyModule() caddy.ModuleInfo {
 // Client is a basic wireguard client.
 type Client struct {
 	json struct {
-		Name      wgcaddy.Hostname
-		Endpoint  wgcaddy.UDPAddr
-		IP        wgcaddy.IP
-		Private   wgcaddy.PrivateKey
-		Public    wgcaddy.PublicKey
-		Preshared wgcaddy.PresharedKey
+		Name      configvalues.Hostname
+		Endpoint  configvalues.UDPAddr
+		IP        configvalues.IP
+		Private   PrivateKey
+		Public    PublicKey
+		Preshared PresharedKey
 	}
 	name   string
 	ip     net.IP
-	net    *pointc.Net
+	net    *wg.Net
 	logger *slog.Logger
-	wg     *pointc.Wireguard
+	wg     *wg.Wireguard
 }
 
 func (c *Client) UnmarshalJSON(bytes []byte) error { return json.Unmarshal(bytes, &c.json) }
 func (c *Client) MarshalJSON() ([]byte, error)     { return json.Marshal(c.json) }
 
-func (c *Client) Networks() map[string]wgcaddy.Net {
-	return map[string]wgcaddy.Net{c.name: (*clientNet)(c)}
+func (c *Client) Networks() map[string]pointc.Net {
+	return map[string]pointc.Net{c.name: (*clientNet)(c)}
 }
 
 type (
 	clientNet    Client
-	clientDialer struct{ d *pointc.Dialer }
+	clientDialer struct{ d *wg.Dialer }
 )
 
 func (c *clientDialer) Dial(ctx context.Context, addr *net.TCPAddr) (net.Conn, error) {
@@ -73,7 +74,7 @@ func (c *clientNet) LocalAddr() net.IP                              { return c.i
 func (c *clientNet) ListenPacket(addr *net.UDPAddr) (net.PacketConn, error) {
 	return c.net.ListenPacket(addr)
 }
-func (c *clientNet) Dialer(laddr net.IP, port uint16) wgcaddy.Dialer {
+func (c *clientNet) Dialer(laddr net.IP, port uint16) pointc.Dialer {
 	return &clientDialer{d: c.net.Dialer(laddr, port)}
 }
 
@@ -96,10 +97,10 @@ func (c *Client) Provision(ctx caddy.Context) (err error) {
 	cfg.DefaultPersistentKeepAlive()
 	cfg.AllowAllIPs()
 
-	c.wg, err = pointc.New(
-		pointc.OptionConfig(&cfg),
-		pointc.OptionLogger(wgevents.Events(func(e wgevents.Event) { e.Slog(c.logger) })),
-		pointc.OptionNetDevice(&c.net),
+	c.wg, err = wg.New(
+		wg.OptionConfig(&cfg),
+		wg.OptionLogger(wgevents.Events(func(e wgevents.Event) { e.Slog(c.logger) })),
+		wg.OptionNetDevice(&c.net),
 	)
 	return
 }

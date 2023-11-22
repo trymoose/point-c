@@ -2,8 +2,8 @@ package wg
 
 import (
 	"encoding"
-	"github.com/trymoose/point-c/wgapi"
-	"github.com/trymoose/point-c/wgcaddy/pkg/configvalues"
+	"github.com/trymoose/point-c/pkg/configvalues"
+	"github.com/trymoose/point-c/pkg/wg/wgapi"
 )
 
 type valueKey[K wgapi.PrivateKey | wgapi.PublicKey | wgapi.PresharedKey] struct{ K K }
@@ -18,9 +18,9 @@ func (wgk valueKey[K]) Value() K {
 
 type (
 	// PrivateKey is a wireguard private key in base64 format.
-	PrivateKey = configvalues.CaddyTextUnmarshaler[wgapi.PrivateKey, caddy.WGKey[wgapi.PrivateKey], *caddy.WGKey[wgapi.PrivateKey]]
+	PrivateKey = configvalues.CaddyTextUnmarshaler[wgapi.PrivateKey, valueKey[wgapi.PrivateKey], *valueKey[wgapi.PrivateKey]]
 	// PublicKey is a wireguard public key in base64 format.
-	PublicKey = configvalues.CaddyTextUnmarshaler[wgapi.PublicKey, caddy.WGKey[wgapi.PublicKey], *caddy.WGKey[wgapi.PublicKey]]
+	PublicKey = configvalues.CaddyTextUnmarshaler[wgapi.PublicKey, valueKey[wgapi.PublicKey], *valueKey[wgapi.PublicKey]]
 	// PresharedKey is a wireguard preshared key in base64 format.
-	PresharedKey = configvalues.CaddyTextUnmarshaler[wgapi.PresharedKey, caddy.WGKey[wgapi.PresharedKey], *caddy.WGKey[wgapi.PresharedKey]]
+	PresharedKey = configvalues.CaddyTextUnmarshaler[wgapi.PresharedKey, valueKey[wgapi.PresharedKey], *valueKey[wgapi.PresharedKey]]
 )

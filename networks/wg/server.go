@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caddyserver/caddy/v2"
-	"github.com/trymoose/point-c"
-	"github.com/trymoose/point-c/wgapi/wgconfig"
-	"github.com/trymoose/point-c/wglog/wgevents"
+	pointc "github.com/trymoose/point-c"
+	"github.com/trymoose/point-c/pkg/configvalues"
+	"github.com/trymoose/point-c/pkg/wg"
+	"github.com/trymoose/point-c/pkg/wg/wgapi/wgconfig"
+	"github.com/trymoose/point-c/pkg/wg/wglog/wgevents"
 	"go.mrchanchal.com/zaphandler"
 	"log/slog"
 	"maps"
@@ -37,27 +39,27 @@ func (*Server) CaddyModule() caddy.ModuleInfo {
 // Server is a basic wireguard server.
 type Server struct {
 	json struct {
-		Name       wgcaddy.Hostname
-		IP         wgcaddy.IP
-		ListenPort wgcaddy.Port
-		Private    wgcaddy.PrivateKey
+		Name       configvalues.Hostname
+		IP         configvalues.IP
+		ListenPort configvalues.Port
+		Private    PrivateKey
 		Peers      []struct {
-			Name         wgcaddy.Hostname
-			Public       wgcaddy.PublicKey
-			PresharedKey wgcaddy.PresharedKey
-			IP           wgcaddy.IP
+			Name         configvalues.Hostname
+			Public       PublicKey
+			PresharedKey PresharedKey
+			IP           configvalues.IP
 		}
 	}
-	net    *pointc.Net
+	net    *wg.Net
 	logger *slog.Logger
-	wg     *pointc.Wireguard
-	nets   map[string]wgcaddy.Net
+	wg     *wg.Wireguard
+	nets   map[string]pointc.Net
 }
 
 func (c *Server) UnmarshalJSON(bytes []byte) error { return json.Unmarshal(bytes, &c.json) }
 func (c *Server) MarshalJSON() ([]byte, error)     { return json.Marshal(c.json) }
 
-func (c *Server) Networks() map[string]wgcaddy.Net { return maps.Clone(c.nets) }
+func (c *Server) Networks() map[string]pointc.Net { return maps.Clone(c.nets) }
 
 func (c *Server) Cleanup() error { return c.wg.Close() }
 
@@ -65,7 +67,7 @@ func (c *Server) Provision(ctx caddy.Context) (err error) {
 	*c = Server{
 		json:   c.json,
 		logger: slog.New(zaphandler.New(ctx.Logger())),
-		nets:   map[string]wgcaddy.Net{},
+		nets:   map[string]pointc.Net{},
 	}
 	c.nets[c.json.Name.Value()] = &serverNet{srv: c, ip: c.json.IP.Value()}
 
@@ -81,17 +83,17 @@ func (c *Server) Provision(ctx caddy.Context) (err error) {
 		c.nets[c.json.Name.Value()] = &serverNet{srv: c, ip: peer.IP.Value()}
 	}
 
-	c.wg, err = pointc.New(
-		pointc.OptionConfig(&cfg),
-		pointc.OptionLogger(wgevents.Events(func(e wgevents.Event) { e.Slog(c.logger) })),
-		pointc.OptionNetDevice(&c.net),
+	c.wg, err = wg.New(
+		wg.OptionConfig(&cfg),
+		wg.OptionLogger(wgevents.Events(func(e wgevents.Event) { e.Slog(c.logger) })),
+		wg.OptionNetDevice(&c.net),
 	)
 	return
 }
 
 var (
-	_ wgcaddy.Net    = (*serverNet)(nil)
-	_ wgcaddy.Dialer = (*serverDialer)(nil)
+	_ pointc.Net    = (*serverNet)(nil)
+	_ pointc.Dialer = (*serverDialer)(nil)
 )
 
 type (
@@ -100,7 +102,7 @@ type (
 		ip  net.IP
 	}
 	serverDialer struct {
-		d *pointc.Dialer
+		d *wg.Dialer
 	}
 )
 
@@ -110,7 +112,7 @@ func (s *serverNet) ListenPacket(addr *net.UDPAddr) (net.PacketConn, error) {
 	return s.srv.net.ListenPacket(addr)
 }
 
-func (s *serverNet) Dialer(laddr net.IP, port uint16) wgcaddy.Dialer {
+func (s *serverNet) Dialer(laddr net.IP, port uint16) pointc.Dialer {
 	return &serverDialer{d: s.srv.net.Dialer(laddr, port)}
 }
 
