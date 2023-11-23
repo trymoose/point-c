@@ -20,6 +20,7 @@ func init() {
 	caddy.RegisterModule(new(Listener))
 }
 
+// Listener allows a caddy server to listen on a point-c network.
 type Listener struct {
 	Name configvalues.Hostname `json:"name"`
 	Port configvalues.Port     `json:"port"`
@@ -55,13 +56,28 @@ func (*Listener) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
+// UnmarshalCaddyfile unmarshals the caddyfile.
+//
+//	{
+//	  servers :443 {
+//	    listener_wrappers {
+//	      merge {
+//	        point-c <network name> <port to expose>
+//	      }
+//	      tls
+//	    }
+//	  }
+//	}
 func (p *Listener) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		var name, port string
 		if !d.Args(&name, &port) {
 			return d.ArgErr()
 		}
-		if err := errors.Join(p.Name.UnmarshalText([]byte(name)), p.Port.UnmarshalText([]byte(port))); err != nil {
+		if err := errors.Join(
+			p.Name.UnmarshalText([]byte(name)),
+			p.Port.UnmarshalText([]byte(port)),
+		); err != nil {
 			return err
 		}
 	}

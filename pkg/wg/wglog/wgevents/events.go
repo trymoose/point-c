@@ -9,7 +9,7 @@ package wgevents
 
 import "strings"
 
-//go:generate go run github.com/trymoose/point-c/wglog/wgevents/internal/events-generate
+//go:generate go run github.com/trymoose/point-c/pkg/wg/wglog/wgevents/internal/events-generate
 
 func init() { parser = new(eventParser) }
 

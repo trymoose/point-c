@@ -1,4 +1,4 @@
 var _ = map[string]struct{}{
-{{ range . }}{{- /*gotype:github.com/trymoose/point-c/wg/wglog/wgevents/internal/events-generate.Event*/ -}}"{{ .Format }}": {},
+{{ range . }}{{- /*gotype:github.com/trymoose/point-c/pkg/wg/wglog/wgevents/internal/events-generate.Event*/ -}}Format{{ if eq .Type "errorf" }}Errorf{{ else }}Verbosef{{ end }}{{ .Name }}: {},
 {{ end -}}
 }

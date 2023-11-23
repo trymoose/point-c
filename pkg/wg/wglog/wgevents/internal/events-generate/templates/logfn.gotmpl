@@ -1,10 +1,10 @@
 {{- $isError := .IsError -}}
-{{- define "rtnAny" }}fn(&EventAny{format: format, args: args, error: {{ . }}})
+{{- define "rtnAny" }}fn(&EventAny{format: format, args: args{{ if . }}, error: {{ . }}{{ end }}})
 return{{ end -}}
 
 switch format {
 {{ range .Events }}{{- /*gotype:github.com/trymoose/point-c/wg/wglog/wgevents/internal/events-generate.Event*/ -}}
-case "{{ .Format }}":{{ if not .Custom }}
+case Format{{ if eq .Type "errorf" }}Errorf{{ else }}Verbosef{{ end }}{{ .Name }}:{{ if not .Custom }}
 {{- $argsLen := len .Args -}}
 if len(args) != {{ $argsLen }} {
         {{ template "rtnAny" $isError }}

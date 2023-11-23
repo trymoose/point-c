@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/trymoose/point-c/pkg/channel-listener"
 	"log/slog"
@@ -70,6 +71,7 @@ func (p *MultiWrapper) WrapListener(ls net.Listener) net.Listener {
 	return cl
 }
 
+// listen does the actual listening.
 func (p *MultiWrapper) listen(ls net.Listener, done <-chan struct{}, finish func(error) error) {
 	go func() {
 		for {
@@ -89,6 +91,18 @@ func (p *MultiWrapper) listen(ls net.Listener, done <-chan struct{}, finish func
 	}()
 }
 
+// UnmarshalCaddyfile unmarshals the caddyfile.
+//
+//	{
+//	  servers :443 {
+//	    listener_wrappers {
+//	      merge {
+//	        <submodule name> <submodule config>
+//	      }
+//	      tls
+//	    }
+//	  }
+//	}
 func (p *MultiWrapper) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
@@ -102,11 +116,7 @@ func (p *MultiWrapper) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				return err
 			}
 
-			raw, err := json.Marshal(v)
-			if err != nil {
-				return err
-			}
-			p.ListenerRaw = append(p.ListenerRaw, raw)
+			p.ListenerRaw = append(p.ListenerRaw, caddyconfig.JSON(v, nil))
 		}
 	}
 	return nil
