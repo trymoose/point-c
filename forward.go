@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
-	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/trymoose/point-c/pkg/configvalues"
-	"github.com/trymoose/point-c/pkg/resuming"
 	"go.mrchanchal.com/zaphandler"
 	"io"
 	"log/slog"
@@ -19,11 +17,6 @@ import (
 	"strings"
 	"sync"
 )
-
-func init() {
-	caddy.RegisterModule(new(Forwards))
-	httpcaddyfile.RegisterGlobalOption("forward", resuming.Unmarshaler[Forwards, *Forwards]("forward"))
-}
 
 var (
 	_ caddy.Provisioner     = (*Forwards)(nil)
@@ -192,7 +185,7 @@ func (p *Forwards) Provision(ctx caddy.Context) error {
 	if err != nil {
 		return err
 	}
-	pc := v.(*Pointc)
+	pc := v.(NetLookup)
 
 	var addrStr strings.Builder
 	for _, fwd := range p.Forwards {

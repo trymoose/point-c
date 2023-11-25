@@ -7,22 +7,15 @@ import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
-	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
-	"github.com/trymoose/point-c/pkg/resuming"
 	"net"
 )
 
-func init() {
-	caddy.RegisterModule(new(Pointc))
-	httpcaddyfile.RegisterGlobalOption("point-c", resuming.Unmarshaler[Pointc, *Pointc]("point-c"))
-}
-
 var (
 	_ caddy.Provisioner     = (*Pointc)(nil)
-	_ caddy.CleanerUpper    = (*Pointc)(nil)
 	_ caddy.Module          = (*Pointc)(nil)
 	_ caddy.App             = (*Pointc)(nil)
 	_ caddyfile.Unmarshaler = (*Pointc)(nil)
+	_ NetLookup             = (*Pointc)(nil)
 )
 
 type (
@@ -50,6 +43,10 @@ type (
 		DialPacket(*net.UDPAddr) (net.PacketConn, error)
 	}
 )
+
+type NetLookup interface {
+	Lookup(string) (Net, bool)
+}
 
 // Pointc allows usage of networks through a [net]-ish interface.
 type Pointc struct {
@@ -94,12 +91,6 @@ func (wg *Pointc) Provision(ctx caddy.Context) error {
 	return nil
 }
 
-func (wg *Pointc) Cleanup() error {
-	wg.networks = nil
-	wg.net = nil
-	return nil
-}
-
 func (*Pointc) Start() error { return nil }
 func (*Pointc) Stop() error  { return nil }
 
@@ -120,15 +111,10 @@ func (wg *Pointc) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
 			modName := d.Val()
-			if modName == "" {
-				continue
-			}
-
 			v, err := caddyfile.UnmarshalModule(d, "point-c.net."+modName)
 			if err != nil {
 				return err
 			}
-
 			wg.NetworksRaw = append(wg.NetworksRaw, caddyconfig.JSON(v, nil))
 		}
 	}

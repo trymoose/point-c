@@ -7,35 +7,33 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/trymoose/point-c/pkg/channel-listener"
-	"log/slog"
 	"net"
 )
 
 var (
-	_ caddy.Provisioner     = (*MultiWrapper)(nil)
-	_ caddy.CleanerUpper    = (*MultiWrapper)(nil)
-	_ caddy.ListenerWrapper = (*MultiWrapper)(nil)
-	_ caddy.Module          = (*MultiWrapper)(nil)
-	_ caddyfile.Unmarshaler = (*MultiWrapper)(nil)
+	_ caddy.Provisioner     = (*MergeWrapper)(nil)
+	_ caddy.CleanerUpper    = (*MergeWrapper)(nil)
+	_ caddy.ListenerWrapper = (*MergeWrapper)(nil)
+	_ caddy.Module          = (*MergeWrapper)(nil)
+	_ caddyfile.Unmarshaler = (*MergeWrapper)(nil)
 )
 
-// MultiWrapper wraps the base connection with multiple wrappers. The returned wrapper produces connections from all [net.Listener]s given.
+// MergeWrapper wraps the base connection with multiple wrappers. The returned wrapper produces connections from all [net.Listener]s given.
 // Listeners merged together will be owned by this module. When the module's [caddy.CleanerUpper] is called the listeners will be closed.
-type MultiWrapper struct {
-	ListenerRaw []json.RawMessage `json:"listener" caddy:"namespace=caddy.listeners.merge.listeners inline_key=listener"`
+type MergeWrapper struct {
+	ListenerRaw []json.RawMessage `json:"listeners" caddy:"namespace=caddy.listeners.merge.listeners inline_key=listener"`
 	listeners   []net.Listener
-	logger      *slog.Logger
 	conns       chan net.Conn
 }
 
-func (p *MultiWrapper) CaddyModule() caddy.ModuleInfo {
+func (p *MergeWrapper) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "caddy.listeners.merge",
-		New: func() caddy.Module { return new(MultiWrapper) },
+		New: func() caddy.Module { return new(MergeWrapper) },
 	}
 }
 
-func (p *MultiWrapper) Provision(ctx caddy.Context) error {
+func (p *MergeWrapper) Provision(ctx caddy.Context) error {
 	if p.ListenerRaw == nil {
 		return errors.New("no listener provided")
 	}
@@ -53,42 +51,40 @@ func (p *MultiWrapper) Provision(ctx caddy.Context) error {
 	return nil
 }
 
-func (p *MultiWrapper) Cleanup() (err error) {
+func (p *MergeWrapper) Cleanup() (err error) {
 	for len(p.listeners) > 0 {
 		err = errors.Join(err, p.listeners[0].Close())
 		p.listeners = p.listeners[1:]
 	}
-	*p = MultiWrapper{}
+	*p = MergeWrapper{}
 	return
 }
 
-func (p *MultiWrapper) WrapListener(ls net.Listener) net.Listener {
+func (p *MergeWrapper) WrapListener(ls net.Listener) net.Listener {
 	p.listeners = append(p.listeners, ls)
 	cl := channel_listener.New(p.conns, ls.Addr())
 	for _, ls := range p.listeners {
-		p.listen(ls, cl.Done(), cl.CloseWithErr)
+		go listen(ls, p.conns, cl.Done(), cl.CloseWithErr)
 	}
 	return cl
 }
 
 // listen does the actual listening.
-func (p *MultiWrapper) listen(ls net.Listener, done <-chan struct{}, finish func(error) error) {
-	go func() {
-		for {
-			c, err := ls.Accept()
-			if err != nil {
-				finish(err)
-				return
-			}
-
-			select {
-			case <-done:
-				c.Close()
-				return
-			case p.conns <- c:
-			}
+func listen(ls net.Listener, conns chan<- net.Conn, done <-chan struct{}, finish func(error) error) {
+	for {
+		c, err := ls.Accept()
+		if err != nil {
+			finish(err)
+			return
 		}
-	}()
+
+		select {
+		case <-done:
+			c.Close()
+			return
+		case conns <- c:
+		}
+	}
 }
 
 // UnmarshalCaddyfile unmarshals the caddyfile.
@@ -103,14 +99,10 @@ func (p *MultiWrapper) listen(ls net.Listener, done <-chan struct{}, finish func
 //	    }
 //	  }
 //	}
-func (p *MultiWrapper) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (p *MergeWrapper) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
 			modName := d.Val()
-			if modName == "" {
-				continue
-			}
-
 			v, err := caddyfile.UnmarshalModule(d, "caddy.listeners.merge.listeners."+modName)
 			if err != nil {
 				return err

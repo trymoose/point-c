@@ -1,6 +1,7 @@
 package point_c_test
 
 import (
+	"context"
 	pointc "github.com/trymoose/point-c"
 	"io"
 	"net"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestStubListener(t *testing.T) {
-	ln, err := pointc.StubListener(nil, "", "test", net.ListenConfig{})
+	ln, err := pointc.StubListener(context.TODO(), "", "test", net.ListenConfig{})
 	if err != nil {
 		t.Fail()
 		return
@@ -17,7 +18,7 @@ func TestStubListener(t *testing.T) {
 }
 
 func TestStubAddr(t *testing.T) {
-	ln, err := pointc.StubListener(nil, "", "test", net.ListenConfig{})
+	ln, err := pointc.StubListener(context.TODO(), "", "test", net.ListenConfig{})
 	if err != nil {
 		t.Fail()
 		return

@@ -1,4 +1,4 @@
-package resuming
+package internal
 
 import (
 	"encoding/json"
@@ -17,7 +17,7 @@ func Unmarshaler[T any, TP interface {
 		if resume != nil {
 			j, ok := resume.(*httpcaddyfile.App)
 			if !ok {
-				return nil, fmt.Errorf("not an %T", j)
+				return nil, fmt.Errorf("not a %T", j)
 			} else if j.Name != name {
 				return nil, fmt.Errorf("expected app with name %q, got %q", name, j.Name)
 			}

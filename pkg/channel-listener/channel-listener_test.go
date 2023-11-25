@@ -26,6 +26,7 @@ func TestListener(t *testing.T) {
 		ln := New(conns, nil)
 		done := make(chan struct{})
 		go func() {
+			defer close(done)
 			c, err := ln.Accept()
 			if c != nil {
 				t.Fail()
@@ -40,7 +41,6 @@ func TestListener(t *testing.T) {
 		select {
 		case <-time.After(time.Second * 10):
 			t.Fail()
-		case <-ln.Done():
 		case <-done:
 		}
 	})

@@ -16,10 +16,6 @@ var (
 	_ caddyfile.Unmarshaler = (*Listener)(nil)
 )
 
-func init() {
-	caddy.RegisterModule(new(Listener))
-}
-
 // Listener allows a caddy server to listen on a point-c network.
 type Listener struct {
 	Name configvalues.Hostname `json:"name"`
@@ -32,7 +28,7 @@ func (p *Listener) Provision(ctx caddy.Context) error {
 	if err != nil {
 		return err
 	}
-	n, ok := m.(*Pointc).Lookup(p.Name.Value())
+	n, ok := m.(NetLookup).Lookup(p.Name.Value())
 	if !ok {
 		return fmt.Errorf("point-c net %q does not exist", p.Name.Value())
 	}

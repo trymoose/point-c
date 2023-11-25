@@ -6,7 +6,7 @@ import (
 )
 
 type Listener struct {
-	c        chan net.Conn
+	c        <-chan net.Conn
 	done     chan struct{}
 	closeErr atomic.Pointer[error]
 	addr     net.Addr
@@ -15,28 +15,10 @@ type Listener struct {
 // New is a listener that passes connections from a channel to the accept method.
 func New(in <-chan net.Conn, addr net.Addr) *Listener {
 	cl := &Listener{
-		c:    make(chan net.Conn),
+		c:    in,
 		done: make(chan struct{}),
 		addr: addr,
 	}
-	go func() {
-		for {
-			select {
-			case <-cl.done:
-				return
-			case c, ok := <-in:
-				if !ok {
-					cl.Close()
-					return
-				}
-				select {
-				case <-cl.done:
-					return
-				case cl.c <- c:
-				}
-			}
-		}
-	}()
 	return cl
 }
 
@@ -44,7 +26,11 @@ func (d *Listener) Accept() (net.Conn, error) {
 	select {
 	case <-d.done:
 		return nil, *d.closeErr.Load()
-	case c := <-d.c:
+	case c, ok := <-d.c:
+		if !ok {
+			d.Close()
+			return d.Accept()
+		}
 		return c, nil
 	}
 }
