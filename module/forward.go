@@ -7,7 +7,9 @@ import (
 	"github.com/trymoose/point-c/module/internal"
 )
 
+const CaddyfileForwardName = "forward"
+
 func init() {
 	caddy.RegisterModule(new(pointc.Forwards))
-	httpcaddyfile.RegisterGlobalOption("forward", internal.Unmarshaler[pointc.Forwards, *pointc.Forwards]("forward"))
+	httpcaddyfile.RegisterGlobalOption(CaddyfileForwardName, internal.Unmarshaler[pointc.Forwards, *pointc.Forwards](CaddyfileForwardName))
 }

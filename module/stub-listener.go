@@ -5,6 +5,8 @@ import (
 	pointc "github.com/trymoose/point-c"
 )
 
+const CaddyNetworkStubName = "stub"
+
 func init() {
-	caddy.RegisterNetwork("stub", pointc.StubListener)
+	caddy.RegisterNetwork(CaddyNetworkStubName, pointc.StubListener)
 }

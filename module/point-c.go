@@ -7,7 +7,9 @@ import (
 	"github.com/trymoose/point-c/module/internal"
 )
 
+const CaddyfilePointCName = "point-c"
+
 func init() {
 	caddy.RegisterModule(new(pointc.Pointc))
-	httpcaddyfile.RegisterGlobalOption("point-c", internal.Unmarshaler[pointc.Pointc, *pointc.Pointc]("point-c"))
+	httpcaddyfile.RegisterGlobalOption(CaddyfilePointCName, internal.Unmarshaler[pointc.Pointc, *pointc.Pointc](CaddyfilePointCName))
 }
