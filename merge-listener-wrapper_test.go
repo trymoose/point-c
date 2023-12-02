@@ -2,414 +2,153 @@ package point_c_test
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	_ "github.com/caddyserver/caddy/v2/modules/standard"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	pointc "github.com/trymoose/point-c"
+	"github.com/trymoose/point-c/internal/test_helpers"
 	_ "github.com/trymoose/point-c/module"
-	"io"
+	"golang.org/x/exp/rand"
 	"net"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
-
-func init() {
-	caddy.RegisterModule(new(TestListener))
-}
-
-type TestListener struct {
-	accept      chan net.Conn
-	closeAccept func()
-	ctx         context.Context
-	t           testing.TB
-
-	Called struct {
-		Provision          bool
-		Cleanup            bool
-		Close              bool
-		Accept             bool
-		Addr               bool
-		UnmarshalCaddyfile bool
-	} `json:"-"`
-
-	ID   uuid.UUID `json:"id"`
-	fail struct {
-		Provision          *string
-		Cleanup            *string
-		UnmarshalCaddyfile *string
-	}
-}
-
-func (e *TestListener) FailProvision(msg string)          { e.fail.Provision = &msg }
-func (e *TestListener) FailCleanup(msg string)            { e.fail.Cleanup = &msg }
-func (e *TestListener) FailUnmarshalCaddyfile(msg string) { e.fail.UnmarshalCaddyfile = &msg }
-
-var TestListeners = map[uuid.UUID]*TestListener{}
-
-func NewTestListener(t testing.TB, ctx context.Context) (*TestListener, func()) {
-	tc := TestListener{
-		ID:     uuid.New(),
-		accept: make(chan net.Conn),
-		t:      t,
-		ctx:    ctx,
-	}
-	tc.closeAccept = sync.OnceFunc(func() { close(tc.accept) })
-	TestListeners[tc.ID] = &tc
-	return &tc, func() {
-		t.Helper()
-		time.AfterFunc(time.Minute, func() { t.Helper(); delete(TestListeners, tc.ID) })
-	}
-}
-
-type NopConn struct{}
-
-func (n2 *NopConn) Read([]byte) (n int, err error)    { return 0, io.EOF }
-func (n2 *NopConn) Write(b []byte) (n int, err error) { return len(b), nil }
-func (n2 *NopConn) Close() error                      { return nil }
-func (n2 *NopConn) LocalAddr() net.Addr               { return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1} }
-func (n2 *NopConn) RemoteAddr() net.Addr              { return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2} }
-func (n2 *NopConn) SetDeadline(time.Time) error       { return nil }
-func (n2 *NopConn) SetReadDeadline(time.Time) error   { return nil }
-func (n2 *NopConn) SetWriteDeadline(time.Time) error  { return nil }
-
-func (e *TestListener) AcceptConn(c net.Conn) {
-	e.t.Helper()
-	select {
-	case <-e.ctx.Done():
-	case e.accept <- c:
-	}
-}
-
-func (e *TestListener) GetReal() *TestListener {
-	lns := TestListeners
-	e = lns[e.ID]
-	e.t.Helper()
-	return e
-}
-
-func (e *TestListener) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	for d.Next() {
-		if !d.NextArg() {
-			return d.ArgErr()
-		} else if err := e.ID.UnmarshalText([]byte(d.Val())); err != nil {
-			return err
-		}
-	}
-
-	e = e.GetReal()
-	e.t.Helper()
-	e.Called.UnmarshalCaddyfile = true
-	if e.fail.UnmarshalCaddyfile != nil {
-		return errors.New(*e.fail.UnmarshalCaddyfile)
-	}
-	return nil
-}
-
-func (e *TestListener) Cleanup() error {
-	e = e.GetReal()
-	e.t.Helper()
-	e.Called.Cleanup = true
-	if e.fail.Cleanup != nil {
-		return errors.New(*e.fail.Cleanup)
-	}
-	return nil
-}
-
-func (e *TestListener) Addr() net.Addr {
-	e = e.GetReal()
-	e.t.Helper()
-	e.Called.Addr = true
-	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}
-}
-
-func (e *TestListener) Accept() (net.Conn, error) {
-	e = e.GetReal()
-	e.t.Helper()
-	if c, ok := <-e.accept; ok {
-		return c, nil
-	}
-	return nil, net.ErrClosed
-}
-
-func (e *TestListener) Close() error { e = e.GetReal(); e.t.Helper(); e.closeAccept(); return nil }
-
-func (e *TestListener) Provision(caddy.Context) error {
-	e = e.GetReal()
-	e.t.Helper()
-	e.Called.Provision = true
-	if e.fail.Provision != nil {
-		return errors.New(*e.fail.Provision)
-	}
-	return nil
-}
-
-var modName = uuid.New().String()
-
-func (e *TestListener) CaddyModule() caddy.ModuleInfo {
-	return caddy.ModuleInfo{
-		ID:  caddy.ModuleID("caddy.listeners.merge.listeners." + modName),
-		New: func() caddy.Module { return new(TestListener) },
-	}
-}
-
-func GenerateJSON(t testing.TB, tln ...*TestListener) []byte {
-	t.Helper()
-	raw := make([]string, len(tln))
-	for i, ln := range tln {
-		raw[i] = fmt.Sprintf(`{"listener": %q, "ID": %q}`, modName, ln.ID.String())
-	}
-	return []byte(fmt.Sprintf(`{"listeners": [%s]}`, strings.Join(raw, ",")))
-}
 
 func TestMergeWrapper_WrapListener(t *testing.T) {
 	t.Run("closed before accepted", func(t *testing.T) {
 		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
 		defer cancel()
-		ln1, clean := NewTestListener(t, ctx)
+		ln, clean := test_helpers.NewTestListeners(t, ctx, 2)
 		defer clean()
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln1))
+		ln1, ln2 := ln[0], ln[1]
+		v, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln1))
 		require.NoError(t, err)
 
-		ln2, clean := NewTestListener(t, ctx)
-		defer clean()
 		wrapped := v.(caddy.ListenerWrapper).WrapListener(ln2)
-		ln1.AcceptConn(&NopConn{})
+		ln1.AcceptConn(test_helpers.NopConn())
 		require.NoError(t, wrapped.Close())
 	})
 
 	t.Run("one listener, accept from wrapped", func(t *testing.T) {
-		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		defer cancel()
-		ln1, clean := NewTestListener(t, ctx)
-		defer clean()
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln1))
-		require.NoError(t, err)
-
-		ln2, clean := NewTestListener(t, ctx)
-		defer clean()
-		wrapped := v.(caddy.ListenerWrapper).WrapListener(ln2)
-		conn, errs := make(chan net.Conn), make(chan error)
-		go func() {
-			defer wrapped.Close()
-			c, e := wrapped.Accept()
-			if e != nil {
-				select {
-				case errs <- e:
-				case <-ctx.Done():
-				}
-			} else {
-				select {
-				case conn <- c:
-				case <-ctx.Done():
-				}
-			}
-		}()
-
-		go func() { ln2.AcceptConn(&NopConn{}) }()
-
-		select {
-		case err := <-errs:
-			require.NoError(t, err)
-		case c := <-conn:
-			require.NotNil(t, c)
-		case <-ctx.Done():
-			t.Error("context cancelled")
-		case <-time.After(time.Second * 5):
-			t.Error("test timed out")
-		}
+		acceptTest(t, 1, func(t testing.TB, wrapped *test_helpers.TestListener, _ []*test_helpers.TestListener) []*test_helpers.TestListener {
+			t.Helper()
+			return []*test_helpers.TestListener{wrapped}
+		})
 	})
 
 	t.Run("one listener, accept from merged", func(t *testing.T) {
-		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		ln1, clean := NewTestListener(t, ctx)
-		defer clean()
-		defer cancel()
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln1))
-		require.NoError(t, err)
-
-		ln2, clean := NewTestListener(t, ctx)
-		defer clean()
-		wrapped := v.(caddy.ListenerWrapper).WrapListener(ln2)
-		conn, errs := make(chan net.Conn), make(chan error)
-		go func() {
-			defer wrapped.Close()
-			c, e := wrapped.Accept()
-			if e != nil {
-				select {
-				case errs <- e:
-				case <-ctx.Done():
-				}
-			} else {
-				select {
-				case conn <- c:
-				case <-ctx.Done():
-				}
-			}
-		}()
-
-		go func() { ln1.AcceptConn(&NopConn{}) }()
-
-		select {
-		case err := <-errs:
-			require.NoError(t, err)
-		case c := <-conn:
-			require.NotNil(t, c)
-		case <-ctx.Done():
-			t.Error("context cancelled")
-		case <-time.After(time.Second * 5):
-			t.Error("test timed out")
-		}
+		acceptTest(t, 1, func(t testing.TB, _ *test_helpers.TestListener, lns []*test_helpers.TestListener) []*test_helpers.TestListener {
+			t.Helper()
+			return lns
+		})
 	})
 
 	t.Run("two listeners, accept from wrapped", func(t *testing.T) {
-		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		defer cancel()
+		acceptTest(t, 1, func(t testing.TB, wrapped *test_helpers.TestListener, _ []*test_helpers.TestListener) []*test_helpers.TestListener {
+			t.Helper()
+			return []*test_helpers.TestListener{wrapped}
+		})
+	})
 
-		ln1, clean := NewTestListener(t, ctx)
-		defer clean()
-		ln2, clean := NewTestListener(t, ctx)
-		defer clean()
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln1, ln2))
-		require.NoError(t, err)
+	t.Run("two listeners, accept from one random merged", func(t *testing.T) {
+		acceptTest(t, 1, func(t testing.TB, _ *test_helpers.TestListener, lns []*test_helpers.TestListener) []*test_helpers.TestListener {
+			t.Helper()
+			return []*test_helpers.TestListener{lns[rand.Intn(len(lns))]}
+		})
+	})
 
-		ln3, clean := NewTestListener(t, ctx)
-		defer clean()
-		wrapped := v.(caddy.ListenerWrapper).WrapListener(ln3)
-		conn, errs := make(chan net.Conn), make(chan error)
-		go func() {
-			defer wrapped.Close()
+	t.Run("two listeners, accept from both", func(t *testing.T) {
+		acceptTest(t, 1, func(t testing.TB, _ *test_helpers.TestListener, lns []*test_helpers.TestListener) []*test_helpers.TestListener {
+			t.Helper()
+			return lns
+		})
+	})
+
+	t.Run("three listeners, accept all", func(t *testing.T) {
+		acceptTest(t, 1, func(t testing.TB, wrapped *test_helpers.TestListener, lns []*test_helpers.TestListener) []*test_helpers.TestListener {
+			t.Helper()
+			lns = append([]*test_helpers.TestListener{wrapped}, lns...)
+			rand.Shuffle(len(lns), func(i, j int) { lns[i], lns[j] = lns[j], lns[i] })
+			return lns
+		})
+	})
+
+	t.Run("three listeners, accept wrapped and one merged", func(t *testing.T) {
+		acceptTest(t, 1, func(t testing.TB, wrapped *test_helpers.TestListener, lns []*test_helpers.TestListener) []*test_helpers.TestListener {
+			t.Helper()
+			return []*test_helpers.TestListener{wrapped, lns[rand.Intn(len(lns))]}
+		})
+	})
+}
+
+func acceptTest(t testing.TB, n int, acceptor func(t testing.TB, wrapped *test_helpers.TestListener, lns []*test_helpers.TestListener) []*test_helpers.TestListener) {
+	t.Helper()
+	n = max(n, 1)
+	ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
+	defer cancel()
+
+	ln, clean := test_helpers.NewTestListeners(t, ctx, n+1) // create an extra one to be wrapped
+	defer clean()
+	v, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln[1:]...))
+	require.NoError(t, err)
+
+	wrapped := v.(caddy.ListenerWrapper).WrapListener(ln[0])
+	conn, errs := make(chan net.Conn), make(chan error)
+	accept := acceptor(t, ln[0], ln[1:])
+	go func() {
+		defer wrapped.Close()
+		for range accept {
 			c, e := wrapped.Accept()
 			if e != nil {
 				select {
 				case errs <- e:
 				case <-ctx.Done():
+					return
 				}
 			} else {
 				select {
 				case conn <- c:
 				case <-ctx.Done():
+					return
 				}
 			}
-		}()
-
-		go func() { ln3.AcceptConn(&NopConn{}) }()
-
-		select {
-		case err := <-errs:
-			require.NoError(t, err)
-		case c := <-conn:
-			require.NotNil(t, c)
-		case <-ctx.Done():
-			t.Error("context cancelled")
-		case <-time.After(time.Second * 5):
-			t.Error("test timed out")
 		}
-	})
+	}()
 
-	t.Run("two listeners, accept from merged 1", func(t *testing.T) {
-		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		defer cancel()
-
-		ln1, clean := NewTestListener(t, ctx)
-		defer clean()
-		ln2, clean := NewTestListener(t, ctx)
-		defer clean()
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln1, ln2))
-		require.NoError(t, err)
-
-		ln3, clean := NewTestListener(t, ctx)
-		defer clean()
-		wrapped := v.(caddy.ListenerWrapper).WrapListener(ln3)
-		conn, errs := make(chan net.Conn), make(chan error)
-		go func() {
-			defer wrapped.Close()
-			c, e := wrapped.Accept()
-			if e != nil {
-				select {
-				case errs <- e:
-				case <-ctx.Done():
-				}
-			} else {
-				select {
-				case conn <- c:
-				case <-ctx.Done():
-				}
+	go func() {
+		for _, a := range accept {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				a.AcceptConn(test_helpers.NopConn())
 			}
-		}()
+		}
+	}()
 
-		go func() { ln1.AcceptConn(&NopConn{}) }()
-
+	for i := range accept {
 		select {
 		case err := <-errs:
-			require.NoError(t, err)
+			require.NoError(t, err, "i = %d", i)
 		case c := <-conn:
-			require.NotNil(t, c)
+			require.NotNil(t, c, "i = %d", i)
 		case <-ctx.Done():
-			t.Error("context cancelled")
+			t.Error("context cancelled", "i = %d", i)
 		case <-time.After(time.Second * 5):
-			t.Error("test timed out")
+			t.Error("test timed out", "i = %d", i)
 		}
-	})
-
-	t.Run("two listeners, accept from merged 1", func(t *testing.T) {
-		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		defer cancel()
-
-		ln1, clean := NewTestListener(t, ctx)
-		defer clean()
-		ln2, clean := NewTestListener(t, ctx)
-		defer clean()
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln1, ln2))
-		require.NoError(t, err)
-
-		ln3, clean := NewTestListener(t, ctx)
-		defer clean()
-		wrapped := v.(caddy.ListenerWrapper).WrapListener(ln3)
-		conn, errs := make(chan net.Conn), make(chan error)
-		go func() {
-			defer wrapped.Close()
-			c, e := wrapped.Accept()
-			if e != nil {
-				select {
-				case errs <- e:
-				case <-ctx.Done():
-				}
-			} else {
-				select {
-				case conn <- c:
-				case <-ctx.Done():
-				}
-			}
-		}()
-
-		go func() { ln2.AcceptConn(&NopConn{}) }()
-
-		select {
-		case err := <-errs:
-			require.NoError(t, err)
-		case c := <-conn:
-			require.NotNil(t, c)
-		case <-ctx.Done():
-			t.Error("context cancelled")
-		case <-time.After(time.Second * 5):
-			t.Error("test timed out")
-		}
-	})
+	}
 }
 
 func TestMergeWrapper_Cleanup(t *testing.T) {
 	t.Run("listener closed", func(t *testing.T) {
 		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		ln, clean := NewTestListener(t, ctx)
+		ln, clean := test_helpers.NewTestListener(t, ctx)
 		defer clean()
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln))
+		v, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln))
 		require.NoError(t, err)
 		cancel()
 		require.Exactly(t, pointc.MergeWrapper{}, *v.(*pointc.MergeWrapper))
@@ -431,31 +170,29 @@ func TestMergeWrapper_Provision(t *testing.T) {
 
 	t.Run("listener failed to load", func(t *testing.T) {
 		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		ln, clean := NewTestListener(t, ctx)
-		defer clean()
 		defer cancel()
+		ln, clean := test_helpers.NewTestListener(t, ctx)
+		defer clean()
 		ln.FailProvision(ln.ID.String())
-		_, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln))
+		_, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln))
 		require.ErrorContains(t, err, ln.ID.String())
 	})
 
 	t.Run("listener fully provisions one listeners", func(t *testing.T) {
 		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		ln, clean := NewTestListener(t, ctx)
-		defer clean()
 		defer cancel()
-		_, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln))
+		ln, clean := test_helpers.NewTestListener(t, ctx)
+		defer clean()
+		_, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln))
 		require.NoError(t, err)
 	})
 
 	t.Run("listener fully provisions two listeners", func(t *testing.T) {
 		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
-		ln1, clean := NewTestListener(t, ctx)
-		defer clean()
-		ln2, clean := NewTestListener(t, ctx)
-		defer clean()
 		defer cancel()
-		_, err := ctx.LoadModuleByID("caddy.listeners.merge", GenerateJSON(t, ln1, ln2))
+		ln, clean := test_helpers.NewTestListeners(t, ctx, 2)
+		defer clean()
+		_, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln...))
 		require.NoError(t, err)
 	})
 }
@@ -463,10 +200,9 @@ func TestMergeWrapper_Provision(t *testing.T) {
 func TestMergeWrapper_UnmarshalCaddyfile(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
-	ln1, clean := NewTestListener(t, ctx)
+	ln, clean := test_helpers.NewTestListeners(t, ctx, 2)
 	defer clean()
-	ln2, clean := NewTestListener(t, ctx)
-	defer clean()
+	ln1, ln2 := ln[0], ln[1]
 
 	tests := []struct {
 		name      string
@@ -477,8 +213,8 @@ func TestMergeWrapper_UnmarshalCaddyfile(t *testing.T) {
 		{
 			name: "basic",
 			caddyfile: `multi {
-	` + modName + ` ` + ln1.ID.String() + `
-	` + modName + ` ` + ln2.ID.String() + `
+	` + test_helpers.ListenerModName() + ` ` + ln1.ID.String() + `
+	` + test_helpers.ListenerModName() + ` ` + ln2.ID.String() + `
 }`,
 			json: `{"listeners": [{"id": "` + ln1.ID.String() + `"}, {"id": "` + ln2.ID.String() + `"}]}`,
 		},
@@ -499,14 +235,16 @@ func TestMergeWrapper_UnmarshalCaddyfile(t *testing.T) {
 			} else {
 				require.NoError(t, err, "UnmarshalCaddyfile()")
 			}
-			require.JSONEq(t, tt.json, jsonMarshal[string](t, pc), "caddyfile != json")
+			require.JSONEq(t, tt.json, test_helpers.JSONMarshal[string](t, pc), "caddyfile != json")
 		})
 	}
 }
 
-func jsonMarshal[O []byte | string](t testing.TB, a any) O {
+func generateMergedJSON(t testing.TB, tln ...*test_helpers.TestListener) []byte {
 	t.Helper()
-	b, err := json.Marshal(a)
-	require.NoError(t, err, "json.Marshal()")
-	return O(b)
+	raw := make([]string, len(tln))
+	for i, ln := range tln {
+		raw[i] = fmt.Sprintf(`{"listener": %q, "ID": %q}`, test_helpers.ListenerModName(), ln.ID.String())
+	}
+	return []byte(fmt.Sprintf(`{"listeners": [%s]}`, strings.Join(raw, ",")))
 }
