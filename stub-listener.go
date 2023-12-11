@@ -6,12 +6,18 @@ import (
 	"net"
 )
 
-// StubListener is a listener that blocks on [net.Listener.Accept] until [net.Listener.Close] is called.
+// StubListener creates a stub network listener. This listener does not accept
+// actual network connections but instead blocks on Accept calls until Close is called.
+// It can be used as a base listener when only tunnel listeners are required.
 func StubListener(_ context.Context, _, addr string, _ net.ListenConfig) (any, error) {
 	return channel_listener.New(make(<-chan net.Conn), stubAddr(addr)), nil
 }
 
+// stubAddr implements [net.Addr] for [StubListener].
 type stubAddr string
 
-func (stubAddr) Network() string  { return "stub" }
+// Network always returns "stub".
+func (stubAddr) Network() string { return "stub" }
+
+// String return [stubAddr] as a string.
 func (d stubAddr) String() string { return string(d) }

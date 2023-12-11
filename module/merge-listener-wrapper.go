@@ -6,5 +6,5 @@ import (
 )
 
 func init() {
-	caddy.RegisterModule(new(pointc.MergeWrapper))
+	caddy.RegisterModule(new(pointc.MultiWrapper))
 }

@@ -24,7 +24,7 @@ func TestMergeWrapper_WrapListener(t *testing.T) {
 		ln, clean := test_helpers.NewTestListeners(t, ctx, 2)
 		defer clean()
 		ln1, ln2 := ln[0], ln[1]
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln1))
+		v, err := ctx.LoadModuleByID("caddy.listeners.multi", generateMergedJSON(t, ln1))
 		require.NoError(t, err)
 
 		wrapped := v.(caddy.ListenerWrapper).WrapListener(ln2)
@@ -92,7 +92,7 @@ func acceptTest(t testing.TB, n int, acceptor func(t testing.TB, wrapped *test_h
 
 	ln, clean := test_helpers.NewTestListeners(t, ctx, n+1) // create an extra one to be wrapped
 	defer clean()
-	v, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln[1:]...))
+	v, err := ctx.LoadModuleByID("caddy.listeners.multi", generateMergedJSON(t, ln[1:]...))
 	require.NoError(t, err)
 
 	wrapped := v.(caddy.ListenerWrapper).WrapListener(ln[0])
@@ -148,23 +148,23 @@ func TestMergeWrapper_Cleanup(t *testing.T) {
 		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
 		ln, clean := test_helpers.NewTestListener(t, ctx)
 		defer clean()
-		v, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln))
+		v, err := ctx.LoadModuleByID("caddy.listeners.multi", generateMergedJSON(t, ln))
 		require.NoError(t, err)
 		cancel()
-		require.Exactly(t, pointc.MergeWrapper{}, *v.(*pointc.MergeWrapper))
+		require.Exactly(t, pointc.MultiWrapper{}, *v.(*pointc.MultiWrapper))
 	})
 }
 
 func TestMergeWrapper_Provision(t *testing.T) {
 	t.Run("no listeners given", func(t *testing.T) {
-		var v pointc.MergeWrapper
+		var v pointc.MultiWrapper
 		require.Error(t, v.Provision(caddy.Context{}))
 	})
 
 	t.Run("listeners set to null", func(t *testing.T) {
 		ctx, cancel := caddy.NewContext(caddy.Context{Context: context.TODO()})
 		defer cancel()
-		_, err := ctx.LoadModuleByID("caddy.listeners.merge", []byte(`{"listeners": null}`))
+		_, err := ctx.LoadModuleByID("caddy.listeners.multi", []byte(`{"listeners": null}`))
 		require.Error(t, err)
 	})
 
@@ -174,7 +174,7 @@ func TestMergeWrapper_Provision(t *testing.T) {
 		ln, clean := test_helpers.NewTestListener(t, ctx)
 		defer clean()
 		ln.FailProvision(ln.ID.String())
-		_, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln))
+		_, err := ctx.LoadModuleByID("caddy.listeners.multi", generateMergedJSON(t, ln))
 		require.ErrorContains(t, err, ln.ID.String())
 	})
 
@@ -183,7 +183,7 @@ func TestMergeWrapper_Provision(t *testing.T) {
 		defer cancel()
 		ln, clean := test_helpers.NewTestListener(t, ctx)
 		defer clean()
-		_, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln))
+		_, err := ctx.LoadModuleByID("caddy.listeners.multi", generateMergedJSON(t, ln))
 		require.NoError(t, err)
 	})
 
@@ -192,7 +192,7 @@ func TestMergeWrapper_Provision(t *testing.T) {
 		defer cancel()
 		ln, clean := test_helpers.NewTestListeners(t, ctx, 2)
 		defer clean()
-		_, err := ctx.LoadModuleByID("caddy.listeners.merge", generateMergedJSON(t, ln...))
+		_, err := ctx.LoadModuleByID("caddy.listeners.multi", generateMergedJSON(t, ln...))
 		require.NoError(t, err)
 	})
 }
@@ -228,7 +228,7 @@ func TestMergeWrapper_UnmarshalCaddyfile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var pc pointc.MergeWrapper
+			var pc pointc.MultiWrapper
 			if err := pc.UnmarshalCaddyfile(caddyfile.NewTestDispenser(tt.caddyfile)); tt.wantErr {
 				require.Errorf(t, err, "UnmarshalCaddyfile() wantErr %v", tt.wantErr)
 				return

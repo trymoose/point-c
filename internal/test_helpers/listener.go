@@ -22,7 +22,7 @@ func ListenerModName() string { return listenerModName() }
 
 func (e *TestListener) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  caddy.ModuleID("caddy.listeners.merge.listeners." + ListenerModName()),
+		ID:  caddy.ModuleID("caddy.listeners.multi.listeners." + ListenerModName()),
 		New: func() caddy.Module { return new(TestListener) },
 	}
 }

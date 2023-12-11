@@ -96,7 +96,7 @@ func (c *Client) Provision(ctx caddy.Context) (err error) {
 	}
 	cfg.DefaultPersistentKeepAlive()
 	cfg.AllowAllIPs()
-
+	// Hostname is a unique hostname.
 	c.wg, err = wg.New(
 		wg.OptionConfig(&cfg),
 		wg.OptionLogger(wgevents.Events(func(e wgevents.Event) { e.Slog(c.logger) })),

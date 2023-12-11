@@ -2,6 +2,7 @@ package channel_listener
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 	"time"
@@ -58,39 +59,16 @@ func TestListener(t *testing.T) {
 		conn := new(testConn)
 		ln := New(conns, nil)
 
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			c, err := ln.Accept()
-			if err != nil {
-				t.Fail()
-			}
-			if c == nil {
-				t.Fail()
-			} else if c != conn {
-				t.Fail()
-			}
+		go func() { conns <- conn }()
+		c, err := ln.Accept()
+		require.NoError(t, err)
+		require.Exactly(t, conn, c)
 
-			c, err = ln.Accept()
-			if err == nil {
-				t.Fail()
-			}
-			if c != nil {
-				t.Fail()
-			}
-		}()
+		require.NoError(t, ln.Close())
 
-		conns <- conn
-		if ln.Close() != nil {
-			t.Fail()
-		}
-
-		select {
-		case <-time.After(time.Second * 10):
-			t.Fail()
-		case <-ln.Done():
-		case <-done:
-		}
+		c, err = ln.Accept()
+		require.Error(t, err)
+		require.Nil(t, c)
 	})
 
 	t.Run("closed input chan", func(t *testing.T) {
@@ -98,10 +76,16 @@ func TestListener(t *testing.T) {
 		close(conns)
 		ln := New(conns, nil)
 		c, err := ln.Accept()
-		if c != nil {
-			t.Fail()
-		}
-		if !errors.Is(err, net.ErrClosed) {
+		require.Nil(t, c)
+		require.ErrorIs(t, err, net.ErrClosed)
+	})
+
+	t.Run("done closed on close", func(t *testing.T) {
+		ln := New(make(<-chan net.Conn), nil)
+		require.NoError(t, ln.Close())
+		select {
+		case <-ln.Done():
+		case <-time.After(time.Second * 5):
 			t.Fail()
 		}
 	})
