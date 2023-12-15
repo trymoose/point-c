@@ -1,4 +1,4 @@
-module github.com/trymoose/point-c/networks/wg
+module github.com/trymoose/point-c/module/networks/wg
 
 go 1.21.3
 
